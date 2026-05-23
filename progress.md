@@ -208,6 +208,48 @@
 | Mock path generation | `MockImageProvider.generate()` enemy asset | Local generated PNG path returned | `runtime/storage/generated-assets/gen_demo_001/enemy/bamboo_slime.png` | Pass |
 | Unknown type fallback | `assetType="boss portal"` | Slug path and seed PNG generated | `boss_portal.png` generated | Pass |
 
+### Phase 9: PR 7 Asset Generation Service
+- **Status:** complete
+- Actions taken:
+  - Created/continued `feature/pr-07-asset-generation-service` from merged PR6 on `origin/main`.
+  - Added `AssetGenerateRequest`, `AssetGenerateResponse`, and `AssetRecord`.
+  - Added `AssetRepository` backed by `backend/runtime/storage/asset-db.json`.
+  - Added `AssetGenerationService` to call Prompt Compiler, Mock Image Provider, and Asset Repository.
+  - Added `POST /api/assets/generate`.
+  - Added backend integration test for mock generation, runtime PNG path, prompt data, and repository persistence.
+  - Connected frontend `GENERATE ASSETS` to the backend API.
+  - Added generated asset result cards with generation id, local path, provider, prompt hash, and final prompt.
+  - Fixed visible frontend Chinese text while touching the generate page.
+  - Added CORS support for Vite dev server on `127.0.0.1:5173`.
+  - Added PR7 description document.
+  - Committed PR7 in three commits and pushed `feature/pr-07-asset-generation-service`.
+- Files created/modified:
+  - `backend/app/models/asset_models.py`
+  - `backend/app/routes/asset_routes.py`
+  - `backend/app/main.py`
+  - `backend/app/repositories/asset_repository.py`
+  - `backend/app/services/asset_generation_service.py`
+  - `backend/tests/test_asset_generation_service.py`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `frontend/src/generationRequest.js`
+  - `frontend/src/generationRequest.test.js`
+  - `frontend/src/assetGeneration.js`
+  - `frontend/src/assetGeneration.test.js`
+  - `frontend/src/promptCompiler.js`
+  - `docs/pr-descriptions/PR_07_ASSET_GENERATION_SERVICE.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR7 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend service tests | `python -m pytest` in `backend` | Health, config, prompt compiler, mock provider, and generation API tests pass | 15 passed | Pass |
+| Frontend unit tests | `npm test` in `frontend` | Request, prompt, config, and generation helpers pass | 4 files, 12 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+| Real generation API | `POST /api/assets/generate` with `Origin: http://127.0.0.1:5173` | CORS allowed and mock asset returned | status 200, provider `mock`, localPath under generated-assets | Pass |
+| Browser mount check | Vite dev page | App renders `GENERATE ASSETS` and `Mock Seed` | Rendered with no console errors | Pass |
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|

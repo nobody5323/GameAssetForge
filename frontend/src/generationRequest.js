@@ -32,13 +32,15 @@ export const defaultGenerationForm = {
   ],
 };
 
-export function buildGenerationRequest(form) {
+export function buildGenerationRequest(form, options = {}) {
   return {
     projectName: form.projectName,
     gameType: form.gameType,
     style: form.style,
     theme: form.theme,
     description: form.description,
+    targetModel: options.targetModel || 'mock_seed',
+    promptMode: options.mode || 'normal',
     assets: form.assets
       .filter((asset) => asset.enabled)
       .map(({ type, name, description }) => ({ type, name, description })),

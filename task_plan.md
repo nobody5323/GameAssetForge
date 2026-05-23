@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 6
+PR 7
 
 ## Phases
 
@@ -105,8 +105,27 @@ PR 6
 
 ### Phase 14: PR 6 Verification
 - [x] Run backend tests.
-- [ ] Push PR 6 branch.
-- **Status:** in_progress
+- [x] Push PR 6 branch.
+- **Status:** complete
+
+### Phase 15: PR 7 Asset Generation Service
+- [x] Create `feature/pr-07-asset-generation-service` from latest `origin/main`.
+- [x] Add `POST /api/assets/generate`.
+- [x] Add `AssetGenerationService`.
+- [x] Add JSON-backed `AssetRepository`.
+- [x] Persist generated asset records.
+- [x] Connect frontend `GENERATE ASSETS` to the backend API.
+- [x] Display generation id, local asset path, provider, and prompt hash.
+- [x] Add PR 7 description document.
+- **Status:** complete
+
+### Phase 16: PR 7 Verification
+- [x] Run backend tests.
+- [x] Run frontend tests.
+- [x] Run frontend production build.
+- [x] Run real HTTP generation request with Vite origin CORS.
+- [x] Push PR 7 branch.
+- **Status:** complete
 
 ## Key Questions
 1. Which backend stack? Answered: Python FastAPI.
