@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.config import llm_runtime_config
+from app.config import LOCAL_CONFIG_PATH, llm_runtime_config
 from app.main import app
 from app.models.config_models import LlmConfigUpdate
 
@@ -9,6 +9,8 @@ def test_llm_config_can_be_updated_without_returning_api_key():
     client = TestClient(app)
     original = llm_runtime_config.public_response()
     original_api_key = llm_runtime_config.api_key
+    if LOCAL_CONFIG_PATH.exists():
+        LOCAL_CONFIG_PATH.unlink()
 
     response = client.put(
         "/api/config/llm",
@@ -29,17 +31,23 @@ def test_llm_config_can_be_updated_without_returning_api_key():
         "hasApiKey": True,
     }
     assert "sk-test-secret" not in response.text
+    assert LOCAL_CONFIG_PATH.exists()
+    assert "sk-test-secret" in LOCAL_CONFIG_PATH.read_text(encoding="utf-8")
 
     llm_runtime_config.provider = original.provider
     llm_runtime_config.base_url = original.baseUrl
     llm_runtime_config.prompt_model = original.promptModel
     llm_runtime_config.api_key = original_api_key
+    if LOCAL_CONFIG_PATH.exists():
+        LOCAL_CONFIG_PATH.unlink()
 
 
 def test_llm_config_clear_api_key():
     client = TestClient(app)
     original = llm_runtime_config.public_response()
     original_api_key = llm_runtime_config.api_key
+    if LOCAL_CONFIG_PATH.exists():
+        LOCAL_CONFIG_PATH.unlink()
 
     response = client.put(
         "/api/config/llm",
@@ -54,6 +62,7 @@ def test_llm_config_clear_api_key():
     assert response.status_code == 200
     assert response.json()["provider"] == "rule_fallback"
     assert response.json()["hasApiKey"] is False
+    assert '"apiKey": ""' in LOCAL_CONFIG_PATH.read_text(encoding="utf-8")
 
     llm_runtime_config.update(
         LlmConfigUpdate(
@@ -63,3 +72,5 @@ def test_llm_config_clear_api_key():
             apiKey=original_api_key,
         )
     )
+    if LOCAL_CONFIG_PATH.exists():
+        LOCAL_CONFIG_PATH.unlink()
