@@ -29,3 +29,4 @@ storage/mock-assets/*.png
 Thumbs.db
 .idea/
 .vscode/
+.claude/

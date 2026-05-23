@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 1
+PR 2
 
 ## Phases
 
@@ -27,14 +27,22 @@ PR 1
 - **Status:** complete
 
 ### Phase 4: PR 1 Verification
-- [ ] Verify only PR 1 bootstrap files remain.
-- [ ] Commit PR 1 in multiple small commits.
-- **Status:** in_progress
+- [x] Verify only PR 1 bootstrap files remain.
+- [x] Commit PR 1 in multiple small commits.
+- **Status:** complete
 
-### Phase 5: Delivery
-- [ ] Summarize files changed and verification results.
-- [ ] Report any dependency or environment caveats.
-- **Status:** pending
+### Phase 5: PR 2 Frontend Shell
+- [x] Create React + Vite frontend project files.
+- [x] Add navigation and four static workspace views.
+- [x] Add package lock for reproducible installs.
+- [x] Document PR 2 changes and verification.
+- **Status:** complete
+
+### Phase 6: PR 2 Verification
+- [x] Run `npm install`.
+- [x] Run `npm run build`.
+- [ ] Push PR 2 branch.
+- **Status:** in_progress
 
 ## Key Questions
 1. Which backend stack? Answered: Python FastAPI.
