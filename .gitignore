@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Environment
+.env
+.env.local
+
+# Runtime storage
+storage/db.json
+storage/generated-assets/
+storage/exports/
+storage/mock-assets/*.png
+!storage/generated-assets/
+!storage/generated-assets/.gitkeep
+!storage/exports/
+!storage/exports/.gitkeep
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

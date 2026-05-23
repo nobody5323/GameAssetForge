@@ -1,0 +1,59 @@
+# Task Plan: Implement GameAsset Forge MVP
+
+## Goal
+Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
+
+## Current Phase
+PR 1
+
+## Phases
+
+### Phase 1: Requirements & Discovery
+- [x] Read the engineering design document.
+- [x] Confirm repository is effectively empty except for the design document.
+- [x] Confirm Python, Node, and npm are available.
+- **Status:** complete
+
+### Phase 2: Planning & Structure
+- [x] Use React + Vite and Python FastAPI.
+- [x] Implement the requested 12-PR roadmap as one MVP working tree.
+- [x] Preserve PR plan in docs.
+- **Status:** complete
+
+### Phase 3: PR 1 Project Bootstrap
+- [x] Create repository docs and env example.
+- [x] Create top-level frontend/backend/docs/storage directories.
+- [x] Preserve PR plan for future branches.
+- **Status:** complete
+
+### Phase 4: PR 1 Verification
+- [ ] Verify only PR 1 bootstrap files remain.
+- [ ] Commit PR 1 in multiple small commits.
+- **Status:** in_progress
+
+### Phase 5: Delivery
+- [ ] Summarize files changed and verification results.
+- [ ] Report any dependency or environment caveats.
+- **Status:** pending
+
+## Key Questions
+1. Which backend stack? Answered: Python FastAPI.
+2. How many PRs? Answered: 12 clear PRs.
+
+## Decisions Made
+| Decision | Rationale |
+|----------|-----------|
+| FastAPI backend | Fast for AI/file/image workflows and easy API docs. |
+| React + Vite frontend | Lightweight and matches the plan. |
+| JSON file repository | MVP-friendly and inspectable. |
+| Mock provider creates fallback PNGs | Keeps demo runnable without checked-in binary assets or API keys. |
+| Simulated cloud upload when Qiniu keys are missing | Keeps acceptance flow demonstrable. |
+
+## Errors Encountered
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+| Git safe.directory and config permission issues | 1 | Used approved `git -c safe.directory=...` earlier for Git reads/config. |
+
+## Notes
+- Avoid relying on real AI image APIs for MVP acceptance.
+- Keep generated runtime files under `storage/`.
