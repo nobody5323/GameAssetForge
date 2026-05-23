@@ -27,6 +27,8 @@ KEYWORD_TAGS = {
     "敌人": ["enemy"],
     "主角": ["hero"],
     "地砖": ["ground tile"],
+    "森林": ["forest environment"],
+    "霓虹": ["neon accents"],
 }
 
 TECHNICAL_TAGS = [
@@ -73,7 +75,7 @@ def extract_prompt_tags(request: PromptCompileRequest) -> dict[str, list[str]]:
         if keyword in text or keyword.lower() in lowered:
             theme_tags.extend(tags)
 
-    if "forest" in lowered or "竹林" in text:
+    if "forest" in lowered or "竹林" in text or "森林" in text:
         environment_tags.append("forest environment")
     if "cyber" in lowered or "赛博" in text:
         mood_tags.extend(["neon atmosphere", "futuristic mood"])

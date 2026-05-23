@@ -1,10 +1,9 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.prompt_models import PromptAssetResult
+from app.models.prompt_models import PromptAssetResult, PromptCompileRequest
 from app.prompt.prompt_scorer import PromptScorer
 from app.prompt.tag_extractor import extract_prompt_tags
-from app.models.prompt_models import PromptCompileRequest
 
 
 BASE_REQUEST = {
@@ -27,6 +26,7 @@ BASE_REQUEST = {
 
 def test_normal_mode_returns_one_gpt_image_candidate_with_fallback(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
     client = TestClient(app)
 
     response = client.post("/api/prompts/compile", json=BASE_REQUEST)
@@ -45,6 +45,7 @@ def test_normal_mode_returns_one_gpt_image_candidate_with_fallback(monkeypatch):
 
 def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
     client = TestClient(app)
     payload = {**BASE_REQUEST, "mode": "professional"}
 
@@ -64,6 +65,7 @@ def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
 
 def test_novelai_prompt_uses_tag_oriented_structure(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
     client = TestClient(app)
     payload = {**BASE_REQUEST, "targetModel": "novelai"}
 
