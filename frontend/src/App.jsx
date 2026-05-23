@@ -1,9 +1,36 @@
 import { useMemo, useState } from 'react';
-import { Archive, FileJson, Image, Plus, Play, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  Bot,
+  FileJson,
+  Image,
+  Plus,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
+import {
+  applyLlmConfigResponse,
+  buildLlmConfigPayload,
+  defaultLlmConfigForm,
+  fetchLlmConfig,
+  providerOptions,
+  saveLlmConfig,
+} from './llmConfig.js';
+import {
+  buildPromptCompileRequest,
+  compilePrompt,
+  pickInitialCandidate,
+  promptModes,
+  targetModels,
+} from './promptCompiler.js';
 
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
+  { id: 'config', label: 'LLM 配置', icon: Bot },
   { id: 'library', label: '素材库', icon: Image },
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
@@ -12,10 +39,16 @@ const views = [
 const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
 const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
 const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
+const directionLabels = {
+  quick_start: '快速草稿',
+  production_safe: '稳定生产',
+  style_exploration: '风格探索',
+  high_detail: '高细节展示',
+};
 
 function App() {
   const [activeView, setActiveView] = useState('generate');
-  const currentView = views.find((v) => v.id === activeView) || views[0];
+  const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
     <main className="app-shell">
@@ -52,6 +85,7 @@ function App() {
         </header>
 
         {activeView === 'generate' && <GeneratePage />}
+        {activeView === 'config' && <ConfigPage />}
         {activeView === 'library' && <LibraryPage />}
         {activeView === 'quality' && <QualityPage />}
         {activeView === 'export' && <ExportPage />}
@@ -73,8 +107,22 @@ function NavButton({ view, active, onClick }) {
 function GeneratePage() {
   const [form, setForm] = useState(defaultGenerationForm);
   const [submitState, setSubmitState] = useState('等待输入');
+  const [promptOptions, setPromptOptions] = useState({
+    mode: 'normal',
+    targetModel: 'gpt_image',
+  });
+  const [compileState, setCompileState] = useState({
+    loading: false,
+    error: '',
+    response: null,
+    selectedCandidateId: '',
+  });
 
   const requestPreview = useMemo(() => buildGenerationRequest(form), [form]);
+  const promptRequestPreview = useMemo(
+    () => buildPromptCompileRequest(form, promptOptions),
+    [form, promptOptions],
+  );
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -117,7 +165,27 @@ function GeneratePage() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，后续 PR 接入 API`);
+    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，PR7 接入生成 API`);
+  }
+
+  async function handleCompilePrompt() {
+    setCompileState((current) => ({ ...current, loading: true, error: '' }));
+    try {
+      const response = await compilePrompt(promptRequestPreview);
+      setCompileState({
+        loading: false,
+        error: '',
+        response,
+        selectedCandidateId: pickInitialCandidate(response.candidates),
+      });
+      setSubmitState(`提示词已编译：${response.candidates.length} 套候选`);
+    } catch (error) {
+      setCompileState((current) => ({
+        ...current,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Prompt compile failed',
+      }));
+    }
   }
 
   return (
@@ -224,6 +292,66 @@ function GeneratePage() {
           ))}
         </div>
 
+        <div className="prompt-control-block">
+          <div className="section-heading compact-heading">
+            <h3>Prompt Compiler</h3>
+            <Sparkles size={14} />
+          </div>
+          <div className="field-grid">
+            <label>
+              编译模式
+              <select
+                value={promptOptions.mode}
+                onChange={(event) =>
+                  setPromptOptions((current) => ({ ...current, mode: event.target.value }))
+                }
+              >
+                {promptModes.map((mode) => (
+                  <option key={mode.id} value={mode.id}>
+                    {mode.label} / {mode.threshold}+
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              目标模型
+              <select
+                value={promptOptions.targetModel}
+                onChange={(event) =>
+                  setPromptOptions((current) => ({ ...current, targetModel: event.target.value }))
+                }
+              >
+                {targetModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="button-row">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleCompilePrompt}
+              disabled={compileState.loading || promptRequestPreview.assets.length === 0}
+            >
+              <Sparkles size={14} />
+              COMPILE PROMPT
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleCompilePrompt}
+              disabled={compileState.loading || !compileState.response}
+            >
+              <RefreshCw size={14} />
+              REGENERATE
+            </button>
+          </div>
+          {compileState.error && <p className="error-line">{compileState.error}</p>}
+        </div>
+
         <button className="primary-button" type="submit">
           <Play size={14} />
           PREPARE REQUEST
@@ -232,12 +360,228 @@ function GeneratePage() {
 
       <section className="panel preview-panel">
         <div className="section-heading">
-          <h3>Prompt Preview</h3>
+          <h3>Request Preview</h3>
           <FileJson size={14} />
         </div>
-        <pre>{JSON.stringify(requestPreview, null, 2)}</pre>
+        <pre>{JSON.stringify(promptRequestPreview, null, 2)}</pre>
       </section>
+
+      <PromptResultPanel
+        response={compileState.response}
+        loading={compileState.loading}
+        selectedCandidateId={compileState.selectedCandidateId}
+        onSelect={(candidateId) =>
+          setCompileState((current) => ({ ...current, selectedCandidateId: candidateId }))
+        }
+      />
     </div>
+  );
+}
+
+function PromptResultPanel({ response, loading, selectedCandidateId, onSelect }) {
+  if (loading) {
+    return (
+      <section className="panel prompt-results">
+        <div className="section-heading">
+          <h3>候选提示词</h3>
+          <span>COMPILING</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (!response) {
+    return (
+      <section className="panel prompt-results">
+        <div className="section-heading">
+          <h3>候选提示词</h3>
+          <span>WAITING</span>
+        </div>
+        <div className="empty-state">选择模式和目标模型后编译提示词。</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="panel prompt-results">
+      <div className="section-heading">
+        <h3>候选提示词</h3>
+        <span>
+          {response.provider} / {response.fallback ? 'FALLBACK' : 'LLM'}
+        </span>
+      </div>
+      <div className="candidate-list">
+        {response.candidates.map((candidate) => (
+          <article
+            className={`candidate-card ${selectedCandidateId === candidate.id ? 'selected' : ''}`}
+            key={candidate.id}
+          >
+            <button className="candidate-head" type="button" onClick={() => onSelect(candidate.id)}>
+              <span>{directionLabels[candidate.direction] || candidate.direction}</span>
+              <strong>{candidate.score}/100</strong>
+            </button>
+            <TagGrid tags={candidate.tags} />
+            {candidate.assets.map((asset) => (
+              <div className="prompt-asset" key={`${candidate.id}-${asset.assetName}`}>
+                <h4>
+                  {asset.assetName} <span>{asset.assetType}</span>
+                </h4>
+                <pre>{asset.finalPrompt}</pre>
+                {asset.negativePrompt && (
+                  <p>
+                    <strong>Negative:</strong> {asset.negativePrompt}
+                  </p>
+                )}
+              </div>
+            ))}
+            {candidate.warnings.map((warning) => (
+              <p className="warning-line" key={warning}>
+                {warning}
+              </p>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TagGrid({ tags }) {
+  return (
+    <div className="tag-grid">
+      {Object.entries(tags).map(([group, values]) => (
+        <div className="tag-group" key={group}>
+          <strong>{group}</strong>
+          <p>{values.join(', ') || '-'}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfigPage() {
+  const [form, setForm] = useState(defaultLlmConfigForm);
+  const [status, setStatus] = useState('尚未读取后端配置');
+  const [loading, setLoading] = useState(false);
+
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchLlmConfig();
+      setForm((current) => ({ ...current, ...applyLlmConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '后端已有 API Key' : '后端暂无 API Key');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveLlmConfig(buildLlmConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyLlmConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '配置已保存，LLM 已启用' : '配置已保存，将使用规则降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>LLM 配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {providerOptions.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Base URL
+            <input
+              value={form.baseUrl}
+              onChange={(event) => updateConfig('baseUrl', event.target.value)}
+              placeholder="https://api.openai.com/v1"
+            />
+          </label>
+          <label>
+            文本模型
+            <input
+              value={form.promptModel}
+              onChange={(event) => updateConfig('promptModel', event.target.value)}
+              placeholder="gpt-5-mini"
+            />
+          </label>
+        </div>
+        <label>
+          OpenAI API Key
+          <input
+            type="password"
+            value={form.apiKey}
+            onChange={(event) => updateConfig('apiKey', event.target.value)}
+            placeholder={form.hasApiKey ? '后端已有 Key，留空表示不修改' : '输入 sk-...'}
+          />
+        </label>
+        <label className="inline-checkbox">
+          <input
+            type="checkbox"
+            checked={form.clearApiKey}
+            onChange={(event) => updateConfig('clearApiKey', event.target.checked)}
+          />
+          清空当前 API Key
+        </label>
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>{form.provider}</span>
+          </div>
+          <div>
+            <strong>Base URL</strong>
+            <span>{form.baseUrl || 'https://api.openai.com/v1'}</span>
+          </div>
+          <div>
+            <strong>Model</strong>
+            <span>{form.promptModel || 'gpt-5-mini'}</span>
+          </div>
+          <div>
+            <strong>Key</strong>
+            <span>{form.hasApiKey ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Bot size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

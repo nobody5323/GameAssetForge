@@ -122,6 +122,51 @@
 | 2026-05-23 | Earlier Git safe directory/config permission issue | 1 | Used `git -c safe.directory=...` for repo commands |
 | 2026-05-23 | Browser plugin blocked `127.0.0.1:5173` and background dev server did not persist | 1 | Used `npm run build` as automated verification and documented manual dev server test |
 | 2026-05-23 | pip install initially blocked by sandbox network permissions | 1 | Retried with approved escalation and installed dependencies |
+| 2026-05-23 | PR5 background Uvicorn process did not stay alive via one PowerShell launch method | 1 | Confirmed foreground Uvicorn startup works and API is covered by FastAPI TestClient tests |
+
+### Phase 7: PR 5 Prompt Compiler
+- **Status:** in progress
+- Actions taken:
+  - Created/continued `feature/pr-05-prompt-compiler`.
+  - Committed backend Prompt Compiler API as `feat: add prompt compiler API`.
+  - Added real OpenAI Responses API provider path with `OPENAI_API_KEY`, `OPENAI_PROMPT_MODEL`, and `PROMPT_PROVIDER=openai`.
+  - Preserved automatic rule fallback when key/config/request/parse fails.
+  - Fixed Prompt Compiler Chinese defaults and tag extraction keyword mapping.
+  - Reworked frontend generation page to include normal/professional modes, GPT Image/NovelAI target model selection, compile/regenerate controls, candidate display, tags, scores, warnings, and selected candidate state.
+  - Added frontend prompt compiler request helpers and tests.
+  - Added runtime LLM config API and frontend LLM config page with Provider, Base URL, model, and API Key fields.
+  - Reworked prompt scoring so professional candidates produce differentiated scores instead of all 100.
+  - Split normal mode into `quick_start` compact prompts and professional mode into strict three-direction exploration.
+  - Added PR5 description document.
+- Files created/modified:
+  - `backend/app/providers/openai_llm_provider.py`
+  - `backend/app/config.py`
+  - `backend/app/models/config_models.py`
+  - `backend/app/routes/config_routes.py`
+  - `backend/tests/test_llm_config.py`
+  - `backend/app/prompt/tag_extractor.py`
+  - `backend/app/prompt/prompt_scorer.py`
+  - `backend/app/prompt/model_optimizers.py`
+  - `backend/tests/test_prompt_compiler.py`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `frontend/src/generationRequest.js`
+  - `frontend/src/llmConfig.js`
+  - `frontend/src/llmConfig.test.js`
+  - `frontend/src/promptCompiler.js`
+  - `frontend/src/promptCompiler.test.js`
+  - `docs/pr-descriptions/PR_05_PROMPT_COMPILER.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR5 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend prompt compiler tests | `python -m pytest` in `backend` | Health, config, and prompt compiler tests pass | 9 passed | Pass |
+| Mode score differentiation | TestClient normal/professional compile | Normal is compact and lower, professional differs by direction | quick_start 71; production_safe 85, style_exploration 80, high_detail 75 | Pass |
+| Frontend unit tests | `npm test` in `frontend` | Request helper and config helper tests pass | 3 files, 9 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+| Frontend dev HTML | `GET http://127.0.0.1:4173/` | Vite serves app HTML | HTML returned | Pass |
 
 ## 5-Question Reboot Check
 | Question | Answer |

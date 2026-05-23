@@ -36,6 +36,11 @@ button {
   font-family: inherit;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* ── App Shell ── */
 
 .app-shell {
@@ -208,6 +213,7 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
   gap: 16px;
+  align-items: start;
 }
 
 /* ── Form Elements ── */
@@ -357,6 +363,32 @@ textarea {
   text-align: center;
 }
 
+.inline-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.prompt-control-block {
+  margin-bottom: 16px;
+}
+
+.error-line,
+.warning-line {
+  margin: 8px 0 0;
+  color: var(--accent-red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ── Preview Panel ── */
 
 .preview-panel pre {
@@ -370,6 +402,164 @@ textarea {
   font-family: var(--body-font);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.prompt-results {
+  grid-column: 1 / -1;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  border: 2px dashed var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.candidate-list {
+  display: grid;
+  gap: 14px;
+}
+
+.candidate-card {
+  border: 2px solid var(--border);
+  background: var(--bg-main);
+}
+
+.candidate-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0, 228, 54, 0.18);
+}
+
+.candidate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-bottom: 2px solid var(--border);
+  padding: 0 12px;
+  color: var(--text-bright);
+  background: var(--bg-deep);
+  cursor: pointer;
+}
+
+.candidate-head span,
+.candidate-head strong {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  font-weight: 400;
+}
+
+.candidate-head strong {
+  color: var(--accent-yellow);
+}
+
+.tag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tag-group {
+  border: 1px solid var(--border);
+  padding: 8px;
+  background: var(--bg-input);
+}
+
+.tag-group strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-cyan);
+  font-family: var(--pixel-font);
+  font-size: 7px;
+}
+
+.tag-group p {
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.prompt-asset {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.prompt-asset:last-child {
+  border-bottom: 0;
+}
+
+.prompt-asset h4 {
+  margin: 0 0 8px;
+  color: var(--text-bright);
+  font-family: var(--pixel-font);
+  font-size: 8px;
+}
+
+.prompt-asset h4 span {
+  color: var(--text-dim);
+  font-family: var(--body-font);
+  font-size: 12px;
+}
+
+.prompt-asset pre {
+  overflow: auto;
+  max-height: 220px;
+  margin: 0;
+  padding: 12px;
+  border: 2px solid var(--border);
+  color: var(--accent);
+  background: var(--bg-deep);
+  white-space: pre-wrap;
+  font-family: var(--body-font);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.prompt-asset p {
+  margin: 8px 0 0;
+  color: var(--accent-pink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.config-panel {
+  max-width: 840px;
+}
+
+.config-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+
+.config-status-grid div {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  border: 2px solid var(--border);
+  padding: 10px;
+  background: var(--bg-main);
+}
+
+.config-status-grid strong {
+  color: var(--accent-cyan);
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  font-weight: 400;
+}
+
+.config-status-grid span {
+  color: var(--text-bright);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 /* ── Asset Grid ── */

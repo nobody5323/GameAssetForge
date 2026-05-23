@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 4
+PR 5
 
 ## Phases
 
@@ -70,7 +70,27 @@ PR 4
 ### Phase 10: PR 4 Verification
 - [x] Run `npm test`.
 - [x] Run `npm run build`.
-- [ ] Push PR 4 branch.
+- [x] Push PR 4 branch.
+- **Status:** complete
+
+### Phase 11: PR 5 Prompt Compiler
+- [x] Add backend `/api/prompts/compile` route.
+- [x] Add Prompt Compiler request/response models.
+- [x] Add tag extraction, model optimizers, scorer, OpenAI LLM provider, and rule fallback provider.
+- [x] Add frontend normal/professional mode controls.
+- [x] Add frontend GPT Image/NovelAI target model controls.
+- [x] Add candidate prompt display and local selection state.
+- [x] Add backend runtime LLM config API.
+- [x] Add frontend LLM config page.
+- [x] Add PR 5 description document.
+- **Status:** complete
+
+### Phase 12: PR 5 Verification
+- [x] Run backend tests.
+- [x] Run frontend tests.
+- [x] Run frontend production build.
+- [x] Verify frontend dev HTML is served locally.
+- [ ] Push PR 5 branch.
 - **Status:** in_progress
 
 ## Key Questions
@@ -90,6 +110,7 @@ PR 4
 | Error | Attempt | Resolution |
 |-------|---------|------------|
 | Git safe.directory and config permission issues | 1 | Used approved `git -c safe.directory=...` earlier for Git reads/config. |
+| PowerShell background Uvicorn launch did not persist reliably | 1 | Verified app with pytest/TestClient and foreground Uvicorn startup; use foreground command for manual API checks. |
 
 ## Notes
 - Avoid relying on real AI image APIs for MVP acceptance.
