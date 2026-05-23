@@ -122,6 +122,39 @@
 | 2026-05-23 | Earlier Git safe directory/config permission issue | 1 | Used `git -c safe.directory=...` for repo commands |
 | 2026-05-23 | Browser plugin blocked `127.0.0.1:5173` and background dev server did not persist | 1 | Used `npm run build` as automated verification and documented manual dev server test |
 | 2026-05-23 | pip install initially blocked by sandbox network permissions | 1 | Retried with approved escalation and installed dependencies |
+| 2026-05-23 | PR5 background Uvicorn process did not stay alive via one PowerShell launch method | 1 | Confirmed foreground Uvicorn startup works and API is covered by FastAPI TestClient tests |
+
+### Phase 7: PR 5 Prompt Compiler
+- **Status:** in progress
+- Actions taken:
+  - Created/continued `feature/pr-05-prompt-compiler`.
+  - Committed backend Prompt Compiler API as `feat: add prompt compiler API`.
+  - Added real OpenAI Responses API provider path with `OPENAI_API_KEY`, `OPENAI_PROMPT_MODEL`, and `PROMPT_PROVIDER=openai`.
+  - Preserved automatic rule fallback when key/config/request/parse fails.
+  - Fixed Prompt Compiler Chinese defaults and tag extraction keyword mapping.
+  - Reworked frontend generation page to include normal/professional modes, GPT Image/NovelAI target model selection, compile/regenerate controls, candidate display, tags, scores, warnings, and selected candidate state.
+  - Added frontend prompt compiler request helpers and tests.
+  - Added PR5 description document.
+- Files created/modified:
+  - `backend/app/providers/openai_llm_provider.py`
+  - `backend/app/prompt/tag_extractor.py`
+  - `backend/tests/test_prompt_compiler.py`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `frontend/src/generationRequest.js`
+  - `frontend/src/promptCompiler.js`
+  - `frontend/src/promptCompiler.test.js`
+  - `docs/pr-descriptions/PR_05_PROMPT_COMPILER.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR5 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend prompt compiler tests | `python -m pytest` in `backend` | Health and prompt compiler tests pass | 6 passed | Pass |
+| Frontend unit tests | `npm test` in `frontend` | Request helper tests pass | 2 files, 6 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+| Frontend dev HTML | `GET http://127.0.0.1:4173/` | Vite serves app HTML | HTML returned | Pass |
 
 ## 5-Question Reboot Check
 | Question | Answer |
