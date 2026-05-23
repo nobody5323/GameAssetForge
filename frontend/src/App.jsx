@@ -1,6 +1,23 @@
 import { useMemo, useState } from 'react';
-import { Archive, FileJson, Image, Plus, Play, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  FileJson,
+  Image,
+  Plus,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
+import {
+  buildPromptCompileRequest,
+  compilePrompt,
+  pickInitialCandidate,
+  promptModes,
+  targetModels,
+} from './promptCompiler.js';
 
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
@@ -12,10 +29,15 @@ const views = [
 const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
 const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
 const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
+const directionLabels = {
+  production_safe: '稳定生产',
+  style_exploration: '风格探索',
+  high_detail: '高细节展示',
+};
 
 function App() {
   const [activeView, setActiveView] = useState('generate');
-  const currentView = views.find((v) => v.id === activeView) || views[0];
+  const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
     <main className="app-shell">
@@ -73,8 +95,22 @@ function NavButton({ view, active, onClick }) {
 function GeneratePage() {
   const [form, setForm] = useState(defaultGenerationForm);
   const [submitState, setSubmitState] = useState('等待输入');
+  const [promptOptions, setPromptOptions] = useState({
+    mode: 'normal',
+    targetModel: 'gpt_image',
+  });
+  const [compileState, setCompileState] = useState({
+    loading: false,
+    error: '',
+    response: null,
+    selectedCandidateId: '',
+  });
 
   const requestPreview = useMemo(() => buildGenerationRequest(form), [form]);
+  const promptRequestPreview = useMemo(
+    () => buildPromptCompileRequest(form, promptOptions),
+    [form, promptOptions],
+  );
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -117,7 +153,27 @@ function GeneratePage() {
 
   function handleSubmit(event) {
     event.preventDefault();
-    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，后续 PR 接入 API`);
+    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，PR7 接入生成 API`);
+  }
+
+  async function handleCompilePrompt() {
+    setCompileState((current) => ({ ...current, loading: true, error: '' }));
+    try {
+      const response = await compilePrompt(promptRequestPreview);
+      setCompileState({
+        loading: false,
+        error: '',
+        response,
+        selectedCandidateId: pickInitialCandidate(response.candidates),
+      });
+      setSubmitState(`提示词已编译：${response.candidates.length} 套候选`);
+    } catch (error) {
+      setCompileState((current) => ({
+        ...current,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Prompt compile failed',
+      }));
+    }
   }
 
   return (
@@ -224,6 +280,66 @@ function GeneratePage() {
           ))}
         </div>
 
+        <div className="prompt-control-block">
+          <div className="section-heading compact-heading">
+            <h3>Prompt Compiler</h3>
+            <Sparkles size={14} />
+          </div>
+          <div className="field-grid">
+            <label>
+              编译模式
+              <select
+                value={promptOptions.mode}
+                onChange={(event) =>
+                  setPromptOptions((current) => ({ ...current, mode: event.target.value }))
+                }
+              >
+                {promptModes.map((mode) => (
+                  <option key={mode.id} value={mode.id}>
+                    {mode.label} / {mode.threshold}+
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              目标模型
+              <select
+                value={promptOptions.targetModel}
+                onChange={(event) =>
+                  setPromptOptions((current) => ({ ...current, targetModel: event.target.value }))
+                }
+              >
+                {targetModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="button-row">
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleCompilePrompt}
+              disabled={compileState.loading || promptRequestPreview.assets.length === 0}
+            >
+              <Sparkles size={14} />
+              COMPILE PROMPT
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleCompilePrompt}
+              disabled={compileState.loading || !compileState.response}
+            >
+              <RefreshCw size={14} />
+              REGENERATE
+            </button>
+          </div>
+          {compileState.error && <p className="error-line">{compileState.error}</p>}
+        </div>
+
         <button className="primary-button" type="submit">
           <Play size={14} />
           PREPARE REQUEST
@@ -232,11 +348,101 @@ function GeneratePage() {
 
       <section className="panel preview-panel">
         <div className="section-heading">
-          <h3>Prompt Preview</h3>
+          <h3>Request Preview</h3>
           <FileJson size={14} />
         </div>
-        <pre>{JSON.stringify(requestPreview, null, 2)}</pre>
+        <pre>{JSON.stringify(promptRequestPreview, null, 2)}</pre>
       </section>
+
+      <PromptResultPanel
+        response={compileState.response}
+        loading={compileState.loading}
+        selectedCandidateId={compileState.selectedCandidateId}
+        onSelect={(candidateId) =>
+          setCompileState((current) => ({ ...current, selectedCandidateId: candidateId }))
+        }
+      />
+    </div>
+  );
+}
+
+function PromptResultPanel({ response, loading, selectedCandidateId, onSelect }) {
+  if (loading) {
+    return (
+      <section className="panel prompt-results">
+        <div className="section-heading">
+          <h3>候选提示词</h3>
+          <span>COMPILING</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (!response) {
+    return (
+      <section className="panel prompt-results">
+        <div className="section-heading">
+          <h3>候选提示词</h3>
+          <span>WAITING</span>
+        </div>
+        <div className="empty-state">选择模式和目标模型后编译提示词。</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="panel prompt-results">
+      <div className="section-heading">
+        <h3>候选提示词</h3>
+        <span>
+          {response.provider} / {response.fallback ? 'FALLBACK' : 'LLM'}
+        </span>
+      </div>
+      <div className="candidate-list">
+        {response.candidates.map((candidate) => (
+          <article
+            className={`candidate-card ${selectedCandidateId === candidate.id ? 'selected' : ''}`}
+            key={candidate.id}
+          >
+            <button className="candidate-head" type="button" onClick={() => onSelect(candidate.id)}>
+              <span>{directionLabels[candidate.direction] || candidate.direction}</span>
+              <strong>{candidate.score}/100</strong>
+            </button>
+            <TagGrid tags={candidate.tags} />
+            {candidate.assets.map((asset) => (
+              <div className="prompt-asset" key={`${candidate.id}-${asset.assetName}`}>
+                <h4>
+                  {asset.assetName} <span>{asset.assetType}</span>
+                </h4>
+                <pre>{asset.finalPrompt}</pre>
+                {asset.negativePrompt && (
+                  <p>
+                    <strong>Negative:</strong> {asset.negativePrompt}
+                  </p>
+                )}
+              </div>
+            ))}
+            {candidate.warnings.map((warning) => (
+              <p className="warning-line" key={warning}>
+                {warning}
+              </p>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TagGrid({ tags }) {
+  return (
+    <div className="tag-grid">
+      {Object.entries(tags).map(([group, values]) => (
+        <div className="tag-group" key={group}>
+          <strong>{group}</strong>
+          <p>{values.join(', ') || '-'}</p>
+        </div>
+      ))}
     </div>
   );
 }
