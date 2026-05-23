@@ -24,6 +24,7 @@
 | Rule fallback remains mandatory | Keeps tests and demo runnable without real API keys. |
 | Runtime LLM config API stores keys only in process memory | Lets users test LLM from the frontend without committing secrets. |
 | LLM config includes Base URL | Supports official OpenAI and OpenAI-compatible gateways. |
+| Prompt scoring should not be only completeness-based | T2I-CompBench, GenEval, Promptist, and OPT2I suggest evaluating prompt specificity, image-text alignment, controllability, model fit, and overcomplexity risk. |
 
 ## Issues Encountered
 | Issue | Resolution |

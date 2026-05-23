@@ -60,7 +60,9 @@ def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
         "high_detail",
     ]
     assert len(data["candidates"]) == 3
-    assert all(candidate["score"] >= 80 for candidate in data["candidates"])
+    scores = [candidate["score"] for candidate in data["candidates"]]
+    assert all(score >= 80 for score in scores)
+    assert len(set(scores)) > 1
 
 
 def test_novelai_prompt_uses_tag_oriented_structure(monkeypatch):
@@ -108,3 +110,58 @@ def test_low_score_prompt_includes_warning():
     )
 
     assert score < 60
+
+
+def test_scorer_penalizes_overcomplex_showcase_prompts():
+    scorer = PromptScorer()
+    tags = {
+        "technical": [
+            "centered composition",
+            "clear silhouette",
+            "readable at small size",
+            "simple background",
+            "game-ready asset",
+        ],
+        "negative": ["no text", "no watermark", "no blurry edges", "no cropped subject"],
+        "theme": ["cyber bamboo forest"],
+        "subject": ["enemy sprite", "bamboo slime"],
+    }
+    production_prompt = PromptAssetResult(
+        assetName="bamboo_slime",
+        assetType="enemy",
+        finalPrompt=(
+            "Create a production-ready 2D game asset.\n"
+            "Subject: bamboo slime enemy sprite.\n"
+            "Direction profile: production_safe.\n"
+            "Style tags: pixel art, limited palette, crisp edges.\n"
+            "Theme tags: cyber bamboo forest.\n"
+            "Technical requirements: centered composition, clear silhouette, readable at small size, simple background, game-ready asset.\n"
+            "Avoid: no text, no watermark, no blurry edges, no cropped subject."
+        ),
+    )
+    showcase_prompt = PromptAssetResult(
+        assetName="bamboo_slime",
+        assetType="enemy",
+        finalPrompt=(
+            "Create a production-ready 2D game asset.\n"
+            "Subject: bamboo slime enemy sprite.\n"
+            "Direction profile: high_detail.\n"
+            "Style tags: pixel art, limited palette, crisp edges.\n"
+            "Theme tags: cyber bamboo forest.\n"
+            "Technical requirements: centered composition, clear silhouette, readable at small size, simple background, game-ready asset.\n"
+            "Add ornate surface texture, cinematic scene, complex background, many tiny details.\n"
+            "Avoid: no text, no watermark, no blurry edges, no cropped subject."
+        ),
+    )
+
+    assert scorer.score(
+        target_model="gpt_image",
+        asset_type="enemy",
+        prompt=production_prompt,
+        tags=tags,
+    ) > scorer.score(
+        target_model="gpt_image",
+        asset_type="enemy",
+        prompt=showcase_prompt,
+        tags=tags,
+    )

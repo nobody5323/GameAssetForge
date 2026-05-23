@@ -2,9 +2,9 @@ from app.models.prompt_models import PromptAssetRequest, PromptDirection, Target
 
 
 DIRECTION_NOTES: dict[PromptDirection, str] = {
-    "production_safe": "Prioritize stable game production use, clear silhouette, and simple readable shapes.",
-    "style_exploration": "Push a stronger visual identity, distinctive color language, and memorable style.",
-    "high_detail": "Add richer material detail while keeping the asset readable and game-ready.",
+    "production_safe": "Prioritize stable game production use, clear silhouette, centered composition, simple background, and simple readable shapes.",
+    "style_exploration": "Push a stronger visual identity, distinctive color palette, stylized lighting, memorable shape language, and bolder mood.",
+    "high_detail": "Add richer material detail, layered lighting, ornate surface texture, and showcase polish while keeping the asset readable and game-ready.",
 }
 
 
@@ -36,6 +36,7 @@ class PromptOptimizer:
                 f"Asset type: {asset.type}",
                 f"Subject: {asset.description}",
                 f"Direction: {DIRECTION_NOTES[direction]}",
+                f"Direction profile: {direction}",
                 f"Style tags: {', '.join(tags['style'])}",
                 f"Theme tags: {', '.join(tags['theme'])}",
                 f"Environment and mood: {', '.join(tags['environment'] + tags['mood'])}",
@@ -60,6 +61,7 @@ class PromptOptimizer:
             asset.name.replace("_", " "),
             asset.description,
             DIRECTION_NOTES[direction],
+            direction.replace("_", " "),
             project_context,
             *tags["style"],
             *tags["theme"],
