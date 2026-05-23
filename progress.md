@@ -177,6 +177,7 @@
   - Added `MockImageProvider` that prepares seed PNGs and copies them into generated-assets runtime paths.
   - Added a small standard-library PNG writer to avoid adding Pillow in PR6.
   - Added unit tests for output path, PNG signature, metadata, seed reuse, and unknown asset type fallback.
+  - Added `mock_seed` target model so the frontend target model selector can choose the local Mock Seed path.
   - Added PR6 description document.
 - Files created/modified:
   - `backend/app/models/asset_models.py`
@@ -184,6 +185,12 @@
   - `backend/app/providers/mock_image_provider.py`
   - `backend/app/utils/png_writer.py`
   - `backend/tests/test_mock_image_provider.py`
+  - `backend/app/models/prompt_models.py`
+  - `backend/app/prompt/model_optimizers.py`
+  - `backend/app/prompt/prompt_scorer.py`
+  - `backend/tests/test_prompt_compiler.py`
+  - `frontend/src/promptCompiler.js`
+  - `frontend/src/promptCompiler.test.js`
   - `docs/pr-descriptions/PR_06_MOCK_IMAGE_PROVIDER.md`
   - `task_plan.md`
   - `progress.md`
@@ -191,7 +198,8 @@
 ## PR6 Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-| Backend provider tests | `python -m pytest` in `backend` | Health, config, prompt compiler, and mock provider tests pass | 13 passed | Pass |
+| Backend provider tests | `python -m pytest` in `backend` | Health, config, prompt compiler, and mock provider tests pass | 14 passed | Pass |
+| Frontend target selector tests | `npm test` in `frontend` | Target model list includes `mock_seed` | 3 files, 10 tests passed | Pass |
 | Mock path generation | `MockImageProvider.generate()` enemy asset | Local generated PNG path returned | `runtime/storage/generated-assets/gen_demo_001/enemy/bamboo_slime.png` | Pass |
 | Unknown type fallback | `assetType="boss portal"` | Slug path and seed PNG generated | `boss_portal.png` generated | Pass |
 

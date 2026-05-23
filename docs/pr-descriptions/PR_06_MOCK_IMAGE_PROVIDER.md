@@ -16,6 +16,10 @@
   - 使用 Python 标准库生成最小 PNG 文件
 - 新增 `backend/tests/test_mock_image_provider.py`
   - 覆盖生成路径、mock metadata、种子素材复用、未知素材类型 slug 清理
+- 扩展 Prompt Compiler 的 `targetModel`
+  - 新增 `mock_seed`
+  - 前端目标模型下拉新增 `Mock Seed`
+  - 后端为 `mock_seed` 生成本地 Provider 说明型 prompt，不调用外部生图模型
 
 ## 功能描述
 
@@ -29,6 +33,8 @@
 - metadata 包含 `promptHash`、`promptVersion`、源素材路径、尺寸和 mock 标记。
 
 本 PR 不新增对外 HTTP 生成接口。PR7 会把 Prompt Compiler、Mock Provider 和 Asset Repository 串起来，实现 `POST /api/assets/generate`。
+
+为了让用户在 PR6 阶段能从界面选择 mock 路径，Prompt Compiler 的目标模型新增 `Mock Seed`。选择后，提示词会明确说明使用本地 Mock Seed Provider，并在 PR7 生成服务中接入真实 mock 文件复制流程。
 
 ## 实现思路
 
@@ -62,6 +68,8 @@ python -m pytest
 - 同一素材类型复用同一 mock seed；
 - 未知素材类型会生成可用 fallback PNG；
 - metadata 包含 `promptHash`、`promptVersion`、尺寸和 mock 标记。
+- 前端目标模型列表包含 `Mock Seed`。
+- `targetModel="mock_seed"` 时 Prompt Compiler 返回本地 mock provider profile。
 
 ## 依赖与来源说明
 

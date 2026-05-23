@@ -84,6 +84,22 @@ def test_novelai_prompt_uses_tag_oriented_structure(monkeypatch):
     assert "low quality" in asset["negativePrompt"]
 
 
+def test_mock_seed_prompt_uses_local_provider_profile(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    client = TestClient(app)
+    payload = {**BASE_REQUEST, "targetModel": "mock_seed"}
+
+    response = client.post("/api/prompts/compile", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["targetModel"] == "mock_seed"
+    prompt = data["candidates"][0]["assets"][0]["finalPrompt"]
+    assert "Mock Seed Provider" in prompt
+    assert "do not call an external image model" in prompt
+
+
 def test_tag_extractor_adds_english_tags_from_chinese_input():
     request = PromptCompileRequest(**BASE_REQUEST)
 

@@ -19,9 +19,33 @@ class PromptOptimizer:
         direction: PromptDirection,
         project_context: str,
     ) -> tuple[str, str | None]:
+        if target_model == "mock_seed":
+            return self._mock_seed_prompt(asset, tags, direction, project_context)
         if target_model == "novelai":
             return self._novelai_prompt(asset, tags, direction, project_context)
         return self._gpt_image_prompt(asset, tags, direction, project_context)
+
+    def _mock_seed_prompt(
+        self,
+        asset: PromptAssetRequest,
+        tags: dict[str, list[str]],
+        direction: PromptDirection,
+        project_context: str,
+    ) -> tuple[str, None]:
+        prompt = "\n".join(
+            [
+                "Use the local Mock Seed Provider; do not call an external image model.",
+                f"Project context: {project_context}",
+                f"Mock seed type: {asset.type}",
+                f"Asset name: {asset.name}",
+                f"Asset description: {asset.description}",
+                f"Direction profile: {direction}",
+                f"Style tags for metadata: {', '.join(tags['style'])}",
+                f"Theme tags for metadata: {', '.join(tags['theme'])}",
+                "Provider behavior: copy the matching local seed PNG into generated-assets and attach prompt metadata.",
+            ]
+        )
+        return prompt, None
 
     def _gpt_image_prompt(
         self,

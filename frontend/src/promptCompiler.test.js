@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPromptCompileRequest, pickInitialCandidate } from './promptCompiler.js';
+import { buildPromptCompileRequest, pickInitialCandidate, targetModels } from './promptCompiler.js';
 import { defaultGenerationForm } from './generationRequest.js';
 
 describe('buildPromptCompileRequest', () => {
@@ -47,5 +47,11 @@ describe('pickInitialCandidate', () => {
 
   it('returns an empty selection when no candidates exist', () => {
     expect(pickInitialCandidate([])).toBe('');
+  });
+});
+
+describe('targetModels', () => {
+  it('includes mock seed for local provider demos', () => {
+    expect(targetModels.map((model) => model.id)).toContain('mock_seed');
   });
 });
