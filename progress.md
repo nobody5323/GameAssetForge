@@ -84,6 +84,25 @@
   - `backend/tests/test_health.py`
   - `docs/pr-descriptions/PR_03_BACKEND_FASTAPI_SHELL.md`
 
+### Phase 6: PR 4 Generation Form
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-04-generation-form` from `origin/main`.
+  - Reworked the frontend generate page into an editable form.
+  - Added project/game/style/theme/description controls.
+  - Added asset task rows with enable, type, name, description, add, and delete controls.
+  - Added live request JSON preview.
+  - Extracted request generation logic into a testable module.
+  - Added Vitest unit tests for request preview behavior.
+- Files created/modified:
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `frontend/src/generationRequest.js`
+  - `frontend/src/generationRequest.test.js`
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `docs/pr-descriptions/PR_04_GENERATION_FORM.md`
+
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
@@ -94,6 +113,8 @@
 | PR2 local dev page | 3x HTTP GET `http://127.0.0.1:4173/` | HTML contains app entry | All checks returned true | Pass |
 | PR3 backend tests | `python -m pytest` in `backend` | Health test passes | 1 passed | Pass |
 | PR3 server startup | `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` | Uvicorn reports running | Startup output confirmed | Pass |
+| PR4 frontend tests | `npm test` in `frontend` | Request builder tests pass | 1 test file, 2 tests passed | Pass |
+| PR4 frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
@@ -105,8 +126,8 @@
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | PR 3 verification |
-| Where am I going? | Push PR3 branch, then wait before PR4 |
+| Where am I? | PR 4 verification |
+| Where am I going? | Push PR4 branch, then wait before PR5 |
 | What's the goal? | Runnable GameAsset Forge MVP matching the PR plan |
 | What have I learned? | See findings.md |
 | What have I done? | Created planning files and began implementation |

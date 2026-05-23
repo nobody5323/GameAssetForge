@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 3
+PR 4
 
 ## Phases
 
@@ -56,7 +56,21 @@ PR 3
 - [x] Install backend dependencies.
 - [x] Run `python -m pytest`.
 - [x] Confirm Uvicorn foreground startup output.
-- [ ] Push PR 3 branch.
+- [x] Push PR 3 branch.
+- **Status:** complete
+
+### Phase 9: PR 4 Generation Form
+- [x] Add editable frontend generation form.
+- [x] Add asset row add/remove/enable controls.
+- [x] Add live request JSON preview.
+- [x] Extract request builder for testing.
+- [x] Add frontend unit tests.
+- **Status:** complete
+
+### Phase 10: PR 4 Verification
+- [x] Run `npm test`.
+- [x] Run `npm run build`.
+- [ ] Push PR 4 branch.
 - **Status:** in_progress
 
 ## Key Questions

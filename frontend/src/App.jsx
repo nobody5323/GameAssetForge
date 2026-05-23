@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Archive, FileJson, Image, Play, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Archive, FileJson, Image, Plus, Play, ShieldCheck, Trash2 } from 'lucide-react';
+import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
@@ -7,6 +8,10 @@ const views = [
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
 ];
+
+const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
+const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
+const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
 
 function App() {
   const [activeView, setActiveView] = useState('generate');
@@ -66,63 +71,171 @@ function NavButton({ view, active, onClick }) {
 }
 
 function GeneratePage() {
+  const [form, setForm] = useState(defaultGenerationForm);
+  const [submitState, setSubmitState] = useState('等待输入');
+
+  const requestPreview = useMemo(() => buildGenerationRequest(form), [form]);
+
+  function updateField(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setSubmitState('请求预览已更新');
+  }
+
+  function updateAsset(index, field, value) {
+    setForm((current) => ({
+      ...current,
+      assets: current.assets.map((asset, assetIndex) =>
+        assetIndex === index ? { ...asset, [field]: value } : asset,
+      ),
+    }));
+    setSubmitState('素材任务已更新');
+  }
+
+  function addAsset() {
+    setForm((current) => ({
+      ...current,
+      assets: [
+        ...current.assets,
+        {
+          type: 'item',
+          name: 'new_asset',
+          description: 'a game-ready 2D asset',
+          enabled: true,
+        },
+      ],
+    }));
+    setSubmitState('已新增素材任务');
+  }
+
+  function removeAsset(index) {
+    setForm((current) => ({
+      ...current,
+      assets: current.assets.filter((_, assetIndex) => assetIndex !== index),
+    }));
+    setSubmitState('已移除素材任务');
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，后续 PR 接入 API`);
+  }
+
   return (
     <div className="content-grid">
-      <section className="panel">
+      <form className="panel" onSubmit={handleSubmit}>
         <div className="section-heading">
           <h3>生成任务</h3>
-          <span>FORM</span>
+          <span>{submitState}</span>
         </div>
         <div className="field-grid">
           <label>
             项目名称
-            <input value="Cyber Bamboo Platformer" readOnly />
+            <input
+              value={form.projectName}
+              onChange={(event) => updateField('projectName', event.target.value)}
+            />
           </label>
           <label>
             游戏类型
-            <select value="platformer" readOnly>
-              <option value="platformer">platformer</option>
+            <select
+              value={form.gameType}
+              onChange={(event) => updateField('gameType', event.target.value)}
+            >
+              {gameTypes.map((gameType) => (
+                <option key={gameType} value={gameType}>
+                  {gameType}
+                </option>
+              ))}
             </select>
           </label>
           <label>
             视觉风格
-            <select value="pixel_art" readOnly>
-              <option value="pixel_art">pixel_art</option>
+            <select value={form.style} onChange={(event) => updateField('style', event.target.value)}>
+              {styles.map((style) => (
+                <option key={style} value={style}>
+                  {style}
+                </option>
+              ))}
             </select>
           </label>
           <label>
             主题
-            <input value="cyber bamboo forest" readOnly />
+            <input value={form.theme} onChange={(event) => updateField('theme', event.target.value)} />
           </label>
         </div>
         <label>
           描述
           <textarea
-            value="赛博竹林主题 2D 横版闯关游戏，需要主角、敌人、金币和地砖素材。"
-            readOnly
+            value={form.description}
+            onChange={(event) => updateField('description', event.target.value)}
           />
         </label>
-        <button className="primary-button" type="button">
+
+        <div className="section-heading compact-heading">
+          <h3>素材任务</h3>
+          <button className="secondary-button" type="button" onClick={addAsset}>
+            <Plus size={14} />
+            ADD ASSET
+          </button>
+        </div>
+
+        <div className="asset-form-list">
+          {form.assets.map((asset, index) => (
+            <div className="asset-form-row" key={`${asset.type}-${asset.name}-${index}`}>
+              <label className="checkbox-label">
+                启用
+                <input
+                  type="checkbox"
+                  checked={asset.enabled}
+                  onChange={(event) => updateAsset(index, 'enabled', event.target.checked)}
+                />
+              </label>
+              <label>
+                类型
+                <select value={asset.type} onChange={(event) => updateAsset(index, 'type', event.target.value)}>
+                  {assetTypes.map((assetType) => (
+                    <option key={assetType} value={assetType}>
+                      {assetType}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                名称
+                <input value={asset.name} onChange={(event) => updateAsset(index, 'name', event.target.value)} />
+              </label>
+              <label>
+                描述
+                <input
+                  value={asset.description}
+                  onChange={(event) => updateAsset(index, 'description', event.target.value)}
+                />
+              </label>
+              <button
+                className="icon-button danger"
+                type="button"
+                onClick={() => removeAsset(index)}
+                aria-label={`删除 ${asset.name}`}
+                title="删除素材任务"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button className="primary-button" type="submit">
           <Play size={14} />
-          START GENERATE
+          PREPARE REQUEST
         </button>
-      </section>
+      </form>
 
       <section className="panel preview-panel">
         <div className="section-heading">
           <h3>Prompt Preview</h3>
           <FileJson size={14} />
         </div>
-        <pre>{`{
-  "projectName": "Cyber Bamboo Platformer",
-  "style": "pixel_art",
-  "assets": [
-    "hero",
-    "enemy",
-    "coin",
-    "tileset"
-  ]
-}`}</pre>
+        <pre>{JSON.stringify(requestPreview, null, 2)}</pre>
       </section>
     </div>
   );
