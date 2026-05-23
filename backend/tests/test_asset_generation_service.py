@@ -63,6 +63,11 @@ def test_generate_assets_creates_mock_files_and_repository_records(monkeypatch):
     assert "Mock Seed Prompt Profile" in asset["finalPrompt"]
     assert (BACKEND_ROOT / asset["localPath"]).exists()
 
+    static_response = client.get(f"/{asset['localPath']}")
+    assert static_response.status_code == 200
+    assert static_response.headers["content-type"] == "image/png"
+    assert static_response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
     repository_data = DB_PATH.read_text(encoding="utf-8")
     assert data["generationId"] in repository_data
     assert asset["id"] in repository_data

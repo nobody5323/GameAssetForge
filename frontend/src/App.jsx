@@ -12,7 +12,11 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { generateAssets, summarizeGeneratedAssets } from './assetGeneration.js';
+import {
+  buildAssetPreviewUrl,
+  generateAssets,
+  summarizeGeneratedAssets,
+} from './assetGeneration.js';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
   applyLlmConfigResponse,
@@ -462,6 +466,9 @@ function GeneratedAssetsPanel({ state }) {
         <div className="generated-grid">
           {state.response.assets.map((asset) => (
             <article className="generated-card" key={asset.id}>
+              <div className="generated-thumb">
+                <img src={buildAssetPreviewUrl(asset.localPath)} alt={`${asset.assetName} preview`} />
+              </div>
               <div className="generated-card-head">
                 <CheckCircle2 size={16} />
                 <strong>{asset.assetName}</strong>
