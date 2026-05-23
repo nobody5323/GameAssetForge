@@ -363,6 +363,13 @@ textarea {
   text-align: center;
 }
 
+.inline-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -520,6 +527,39 @@ textarea {
   color: var(--accent-pink);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.config-panel {
+  max-width: 840px;
+}
+
+.config-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+
+.config-status-grid div {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  border: 2px solid var(--border);
+  padding: 10px;
+  background: var(--bg-main);
+}
+
+.config-status-grid strong {
+  color: var(--accent-cyan);
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  font-weight: 400;
+}
+
+.config-status-grid span {
+  color: var(--text-bright);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 /* ── Asset Grid ── */

@@ -80,6 +80,8 @@ PR 5
 - [x] Add frontend normal/professional mode controls.
 - [x] Add frontend GPT Image/NovelAI target model controls.
 - [x] Add candidate prompt display and local selection state.
+- [x] Add backend runtime LLM config API.
+- [x] Add frontend LLM config page.
 - [x] Add PR 5 description document.
 - **Status:** complete
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   Archive,
+  Bot,
   FileJson,
   Image,
   Plus,
@@ -12,6 +13,14 @@ import {
 } from 'lucide-react';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
+  applyLlmConfigResponse,
+  buildLlmConfigPayload,
+  defaultLlmConfigForm,
+  fetchLlmConfig,
+  providerOptions,
+  saveLlmConfig,
+} from './llmConfig.js';
+import {
   buildPromptCompileRequest,
   compilePrompt,
   pickInitialCandidate,
@@ -21,6 +30,7 @@ import {
 
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
+  { id: 'config', label: 'LLM 配置', icon: Bot },
   { id: 'library', label: '素材库', icon: Image },
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
@@ -74,6 +84,7 @@ function App() {
         </header>
 
         {activeView === 'generate' && <GeneratePage />}
+        {activeView === 'config' && <ConfigPage />}
         {activeView === 'library' && <LibraryPage />}
         {activeView === 'quality' && <QualityPage />}
         {activeView === 'export' && <ExportPage />}
@@ -444,6 +455,132 @@ function TagGrid({ tags }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ConfigPage() {
+  const [form, setForm] = useState(defaultLlmConfigForm);
+  const [status, setStatus] = useState('尚未读取后端配置');
+  const [loading, setLoading] = useState(false);
+
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchLlmConfig();
+      setForm((current) => ({ ...current, ...applyLlmConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '后端已有 API Key' : '后端暂无 API Key');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveLlmConfig(buildLlmConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyLlmConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '配置已保存，LLM 已启用' : '配置已保存，将使用规则降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>LLM 配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {providerOptions.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Base URL
+            <input
+              value={form.baseUrl}
+              onChange={(event) => updateConfig('baseUrl', event.target.value)}
+              placeholder="https://api.openai.com/v1"
+            />
+          </label>
+          <label>
+            文本模型
+            <input
+              value={form.promptModel}
+              onChange={(event) => updateConfig('promptModel', event.target.value)}
+              placeholder="gpt-5-mini"
+            />
+          </label>
+        </div>
+        <label>
+          OpenAI API Key
+          <input
+            type="password"
+            value={form.apiKey}
+            onChange={(event) => updateConfig('apiKey', event.target.value)}
+            placeholder={form.hasApiKey ? '后端已有 Key，留空表示不修改' : '输入 sk-...'}
+          />
+        </label>
+        <label className="inline-checkbox">
+          <input
+            type="checkbox"
+            checked={form.clearApiKey}
+            onChange={(event) => updateConfig('clearApiKey', event.target.checked)}
+          />
+          清空当前 API Key
+        </label>
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>{form.provider}</span>
+          </div>
+          <div>
+            <strong>Base URL</strong>
+            <span>{form.baseUrl || 'https://api.openai.com/v1'}</span>
+          </div>
+          <div>
+            <strong>Model</strong>
+            <span>{form.promptModel || 'gpt-5-mini'}</span>
+          </div>
+          <div>
+            <strong>Key</strong>
+            <span>{form.hasApiKey ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Bot size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

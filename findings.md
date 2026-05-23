@@ -22,6 +22,8 @@
 | GPT Image as prompt target profile in PR5 | PR5 only compiles prompts; it does not call image generation APIs. |
 | `OPENAI_PROMPT_MODEL` config for text LLM | Keeps the text prompt generation model configurable as OpenAI model availability changes. |
 | Rule fallback remains mandatory | Keeps tests and demo runnable without real API keys. |
+| Runtime LLM config API stores keys only in process memory | Lets users test LLM from the frontend without committing secrets. |
+| LLM config includes Base URL | Supports official OpenAI and OpenAI-compatible gateways. |
 
 ## Issues Encountered
 | Issue | Resolution |

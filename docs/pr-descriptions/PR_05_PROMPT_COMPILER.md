@@ -5,7 +5,9 @@
 - 新增 `POST /api/prompts/compile` 后端接口。
 - 新增提示词请求、候选、素材提示词等 Pydantic 数据模型。
 - 新增标签提取、模型提示词优化、提示词评分、规则降级 Provider、OpenAI LLM Provider。
+- 新增 `GET /api/config/llm` 与 `PUT /api/config/llm`，支持运行时配置 LLM Provider、Base URL、文本模型和 API Key。
 - 前端生成页新增普通/专业模式、GPT Image/NovelAI 目标模型选择、编译和重新生成按钮。
+- 前端新增 LLM 配置页，用户可在页面内配置 OpenAI-compatible Base URL、OpenAI Key、模型名或切换规则降级。
 - 前端新增候选提示词展示区，支持选择候选方案、查看评分、标签、每个素材的 finalPrompt 和 negativePrompt。
 - 修复前端现有中文文案编码损坏，保证页面可读、可构建。
 - 新增前后端单元测试，覆盖请求构建、候选选择、模式阈值、模型提示词结构和规则降级。
@@ -20,6 +22,7 @@
 - GPT Image 输出自然语言型英文提示词。
 - NovelAI 输出 tag-oriented 提示词，并单独返回 negative prompt。
 - 无 OpenAI Key、请求失败或解析失败时，自动使用 `rule_fallback`，保证演示不中断。
+- 用户可以在前端 LLM 配置页写入 Base URL、模型名和 API Key，配置只保存在当前后端进程内，不提交到仓库。
 
 ## 实现思路
 
@@ -30,6 +33,8 @@
   - `novelai`：逗号分隔标签，negative prompt 独立输出。
 - `prompt_scorer.py` 按结构完整度、素材类型匹配、模型适配度、技术约束和负面约束给出 0-100 分。
 - `openai_llm_provider.py` 接入 OpenAI Responses API，文本模型通过 `OPENAI_PROMPT_MODEL` 配置；默认模型为 `gpt-5-mini`。OpenAI 官方模型页包含 GPT Image 系列图像模型和 GPT-5 系列文本模型，本 PR 只把 GPT Image 作为目标提示词 profile，不调用图像生成。
+- `config.py` 提供集中配置类，启动时读取环境变量，运行时可通过配置 API 更新；接口返回 Base URL、Provider、模型名和 `hasApiKey`，不会回显密钥明文。
+- Base URL 默认是 `https://api.openai.com/v1`，也支持 OpenAI-compatible 网关，例如以 `/v1` 结尾的代理地址。
 - `prompt_compiler.py` 统一执行真实 LLM 优先、规则降级兜底的策略。
 - 前端保留当前像素风格，在生成页内增加 Prompt Compiler 控件和候选结果区；选中候选只保存在本地状态，PR7 再接入素材生成链路。
 
@@ -45,7 +50,7 @@ python -m pytest
 已验证：
 
 ```text
-6 passed
+8 passed
 ```
 
 前端：
@@ -59,8 +64,8 @@ npm run build
 已验证：
 
 ```text
-2 test files passed
-6 tests passed
+3 test files passed
+9 tests passed
 vite build completed
 ```
 
@@ -75,6 +80,8 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 ```text
 POST http://127.0.0.1:8000/api/prompts/compile
+GET  http://127.0.0.1:8000/api/config/llm
+PUT  http://127.0.0.1:8000/api/config/llm
 ```
 
 无 `OPENAI_API_KEY` 时应返回：
@@ -102,6 +109,7 @@ http://127.0.0.1:4173/
 - 页面能看到生成任务表单和 Prompt Compiler 区域。
 - 切换普通/专业模式，请求预览中的 `mode` 同步变化。
 - 切换 GPT Image/NovelAI，请求预览中的 `targetModel` 同步变化。
+- 切换到 LLM 配置页，可保存 Provider、Base URL、模型名和 API Key。
 - 后端启动时点击 `COMPILE PROMPT` 能显示候选提示词。
 - 点击候选标题会更新选中状态。
 

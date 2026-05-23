@@ -1,5 +1,4 @@
-import os
-
+from app.config import llm_runtime_config
 from app.models.prompt_models import PromptCompileRequest, PromptCompileResponse
 from app.prompt.tag_extractor import extract_prompt_tags
 from app.providers.openai_llm_provider import OpenAiLlmProvider
@@ -14,7 +13,7 @@ class PromptCompiler:
     def compile(self, request: PromptCompileRequest) -> PromptCompileResponse:
         tags = extract_prompt_tags(request)
         threshold = 80 if request.mode == "professional" else 60
-        preferred_provider = os.getenv("PROMPT_PROVIDER", "openai")
+        preferred_provider = llm_runtime_config.provider
 
         if preferred_provider == "openai":
             try:

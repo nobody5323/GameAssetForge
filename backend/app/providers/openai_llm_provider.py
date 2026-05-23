@@ -1,6 +1,6 @@
-import os
 import json
 
+from app.config import llm_runtime_config
 from app.models.prompt_models import PromptCandidate, PromptCompileRequest
 from app.prompt.prompt_scorer import PromptScorer
 from app.providers.llm_provider import LlmProvider
@@ -12,12 +12,10 @@ class OpenAiLlmProvider(LlmProvider):
     provider_name = "openai"
 
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY", "")
-        self.model = os.getenv("OPENAI_PROMPT_MODEL", "gpt-5-mini")
         self.scorer = PromptScorer()
 
     def is_available(self) -> bool:
-        return bool(self.api_key)
+        return bool(llm_runtime_config.api_key)
 
     def compile_prompts(
         self,
@@ -44,7 +42,7 @@ class OpenAiLlmProvider(LlmProvider):
         tags: dict[str, list[str]],
     ) -> list[PromptCandidate]:
         payload = {
-            "model": self.model,
+            "model": llm_runtime_config.prompt_model,
             "input": [
                 {
                     "role": "system",
@@ -84,9 +82,9 @@ class OpenAiLlmProvider(LlmProvider):
 
         with httpx.Client(timeout=45) as client:
             response = client.post(
-                "https://api.openai.com/v1/responses",
+                f"{llm_runtime_config.base_url}/responses",
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
+                    "Authorization": f"Bearer {llm_runtime_config.api_key}",
                     "Content-Type": "application/json",
                 },
                 json=payload,

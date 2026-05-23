@@ -134,14 +134,21 @@
   - Fixed Prompt Compiler Chinese defaults and tag extraction keyword mapping.
   - Reworked frontend generation page to include normal/professional modes, GPT Image/NovelAI target model selection, compile/regenerate controls, candidate display, tags, scores, warnings, and selected candidate state.
   - Added frontend prompt compiler request helpers and tests.
+  - Added runtime LLM config API and frontend LLM config page with Provider, Base URL, model, and API Key fields.
   - Added PR5 description document.
 - Files created/modified:
   - `backend/app/providers/openai_llm_provider.py`
+  - `backend/app/config.py`
+  - `backend/app/models/config_models.py`
+  - `backend/app/routes/config_routes.py`
+  - `backend/tests/test_llm_config.py`
   - `backend/app/prompt/tag_extractor.py`
   - `backend/tests/test_prompt_compiler.py`
   - `frontend/src/App.jsx`
   - `frontend/src/styles.css`
   - `frontend/src/generationRequest.js`
+  - `frontend/src/llmConfig.js`
+  - `frontend/src/llmConfig.test.js`
   - `frontend/src/promptCompiler.js`
   - `frontend/src/promptCompiler.test.js`
   - `docs/pr-descriptions/PR_05_PROMPT_COMPILER.md`
@@ -151,8 +158,8 @@
 ## PR5 Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-| Backend prompt compiler tests | `python -m pytest` in `backend` | Health and prompt compiler tests pass | 6 passed | Pass |
-| Frontend unit tests | `npm test` in `frontend` | Request helper tests pass | 2 files, 6 tests passed | Pass |
+| Backend prompt compiler tests | `python -m pytest` in `backend` | Health, config, and prompt compiler tests pass | 8 passed | Pass |
+| Frontend unit tests | `npm test` in `frontend` | Request helper and config helper tests pass | 3 files, 9 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 | Frontend dev HTML | `GET http://127.0.0.1:4173/` | Vite serves app HTML | HTML returned | Pass |
 
