@@ -408,6 +408,64 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.generated-results {
+  grid-column: 1 / -1;
+}
+
+.generated-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.generated-card {
+  border: 2px solid var(--border);
+  padding: 12px;
+  background: var(--bg-main);
+}
+
+.generated-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+.generated-card-head strong {
+  color: var(--text-bright);
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  font-weight: 400;
+}
+
+.generated-card-head span {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.generated-card p,
+.generated-card small {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.generated-card pre {
+  overflow: auto;
+  max-height: 180px;
+  margin: 0;
+  padding: 10px;
+  border: 2px solid var(--border);
+  color: var(--accent);
+  background: var(--bg-deep);
+  white-space: pre-wrap;
+  font-family: var(--body-font);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .empty-state {
   display: grid;
   place-items: center;

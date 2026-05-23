@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Archive,
   Bot,
+  CheckCircle2,
   FileJson,
   Image,
   Plus,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
+import { generateAssets, summarizeGeneratedAssets } from './assetGeneration.js';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
   applyLlmConfigResponse,
@@ -40,7 +42,7 @@ const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background']
 const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
 const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
 const directionLabels = {
-  quick_start: '快速草稿',
+  quick_start: '快速起步',
   production_safe: '稳定生产',
   style_exploration: '风格探索',
   high_detail: '高细节展示',
@@ -48,7 +50,7 @@ const directionLabels = {
 
 const defaultPromptOptions = {
   mode: 'normal',
-  targetModel: 'gpt_image',
+  targetModel: 'mock_seed',
 };
 
 const defaultCompileState = {
@@ -58,12 +60,19 @@ const defaultCompileState = {
   selectedCandidateId: '',
 };
 
+const defaultGenerationState = {
+  loading: false,
+  error: '',
+  response: null,
+};
+
 function App() {
   const [activeView, setActiveView] = useState('generate');
   const [generationForm, setGenerationForm] = useState(defaultGenerationForm);
   const [submitState, setSubmitState] = useState('等待输入');
   const [promptOptions, setPromptOptions] = useState(defaultPromptOptions);
   const [compileState, setCompileState] = useState(defaultCompileState);
+  const [assetGenerationState, setAssetGenerationState] = useState(defaultGenerationState);
   const [llmConfigForm, setLlmConfigForm] = useState(defaultLlmConfigForm);
   const [llmConfigStatus, setLlmConfigStatus] = useState('尚未读取后端配置');
   const [llmConfigLoading, setLlmConfigLoading] = useState(false);
@@ -113,6 +122,8 @@ function App() {
             setPromptOptions={setPromptOptions}
             compileState={compileState}
             setCompileState={setCompileState}
+            assetGenerationState={assetGenerationState}
+            setAssetGenerationState={setAssetGenerationState}
           />
         )}
         {activeView === 'config' && (
@@ -152,8 +163,13 @@ function GeneratePage({
   setPromptOptions,
   compileState,
   setCompileState,
+  assetGenerationState,
+  setAssetGenerationState,
 }) {
-  const requestPreview = useMemo(() => buildGenerationRequest(form), [form]);
+  const requestPreview = useMemo(
+    () => buildGenerationRequest(form, promptOptions),
+    [form, promptOptions],
+  );
   const promptRequestPreview = useMemo(
     () => buildPromptCompileRequest(form, promptOptions),
     [form, promptOptions],
@@ -198,11 +214,6 @@ function GeneratePage({
     setSubmitState('已移除素材任务');
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    setSubmitState(`已准备 ${requestPreview.assets.length} 个素材任务，PR7 接入生成 API`);
-  }
-
   async function handleCompilePrompt() {
     setCompileState((current) => ({ ...current, loading: true, error: '' }));
     try {
@@ -213,7 +224,7 @@ function GeneratePage({
         response,
         selectedCandidateId: pickInitialCandidate(response.candidates),
       });
-      setSubmitState(`提示词已编译：${response.candidates.length} 套候选`);
+      setSubmitState(`提示词已编译，返回 ${response.candidates.length} 套候选`);
     } catch (error) {
       setCompileState((current) => ({
         ...current,
@@ -223,9 +234,25 @@ function GeneratePage({
     }
   }
 
+  async function handleGenerateAssets(event) {
+    event.preventDefault();
+    setAssetGenerationState((current) => ({ ...current, loading: true, error: '' }));
+    try {
+      const response = await generateAssets(requestPreview);
+      setAssetGenerationState({ loading: false, error: '', response });
+      setSubmitState(`已生成 ${response.assets.length} 个素材：${response.generationId}`);
+    } catch (error) {
+      setAssetGenerationState((current) => ({
+        ...current,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Asset generation failed',
+      }));
+    }
+  }
+
   return (
     <div className="content-grid">
-      <form className="panel" onSubmit={handleSubmit}>
+      <form className="panel" onSubmit={handleGenerateAssets}>
         <div className="section-heading">
           <h3>生成任务</h3>
           <span>{submitState}</span>
@@ -366,7 +393,7 @@ function GeneratePage({
           </div>
           <div className="button-row">
             <button
-              className="primary-button"
+              className="secondary-button"
               type="button"
               onClick={handleCompilePrompt}
               disabled={compileState.loading || promptRequestPreview.assets.length === 0}
@@ -387,10 +414,15 @@ function GeneratePage({
           {compileState.error && <p className="error-line">{compileState.error}</p>}
         </div>
 
-        <button className="primary-button" type="submit">
+        <button
+          className="primary-button"
+          type="submit"
+          disabled={assetGenerationState.loading || requestPreview.assets.length === 0}
+        >
           <Play size={14} />
-          PREPARE REQUEST
+          GENERATE ASSETS
         </button>
+        {assetGenerationState.error && <p className="error-line">{assetGenerationState.error}</p>}
       </form>
 
       <section className="panel preview-panel">
@@ -398,8 +430,10 @@ function GeneratePage({
           <h3>Request Preview</h3>
           <FileJson size={14} />
         </div>
-        <pre>{JSON.stringify(promptRequestPreview, null, 2)}</pre>
+        <pre>{JSON.stringify(requestPreview, null, 2)}</pre>
       </section>
+
+      <GeneratedAssetsPanel state={assetGenerationState} />
 
       <PromptResultPanel
         response={compileState.response}
@@ -410,6 +444,39 @@ function GeneratePage({
         }
       />
     </div>
+  );
+}
+
+function GeneratedAssetsPanel({ state }) {
+  return (
+    <section className="panel generated-results">
+      <div className="section-heading">
+        <h3>生成结果</h3>
+        <span>{state.loading ? 'GENERATING' : summarizeGeneratedAssets(state.response)}</span>
+      </div>
+      {!state.response && !state.loading && (
+        <div className="empty-state">点击 GENERATE ASSETS 后会写入本地 mock 素材并返回路径。</div>
+      )}
+      {state.loading && <div className="empty-state">正在串联 Prompt Compiler、Mock Provider 和素材仓库。</div>}
+      {state.response && (
+        <div className="generated-grid">
+          {state.response.assets.map((asset) => (
+            <article className="generated-card" key={asset.id}>
+              <div className="generated-card-head">
+                <CheckCircle2 size={16} />
+                <strong>{asset.assetName}</strong>
+                <span>{asset.assetType}</span>
+              </div>
+              <p>{asset.localPath}</p>
+              <small>
+                {asset.provider} / {asset.providerMetadata.promptHash}
+              </small>
+              <pre>{asset.finalPrompt}</pre>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -432,7 +499,7 @@ function PromptResultPanel({ response, loading, selectedCandidateId, onSelect })
           <h3>候选提示词</h3>
           <span>WAITING</span>
         </div>
-        <div className="empty-state">选择模式和目标模型后编译提示词。</div>
+        <div className="empty-state">选择模式和目标模型后，可以先编译提示词，也可以直接生成素材。</div>
       </section>
     );
   }
