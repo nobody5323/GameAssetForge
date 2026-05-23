@@ -136,6 +136,7 @@
   - Added frontend prompt compiler request helpers and tests.
   - Added runtime LLM config API and frontend LLM config page with Provider, Base URL, model, and API Key fields.
   - Reworked prompt scoring so professional candidates produce differentiated scores instead of all 100.
+  - Split normal mode into `quick_start` compact prompts and professional mode into strict three-direction exploration.
   - Added PR5 description document.
 - Files created/modified:
   - `backend/app/providers/openai_llm_provider.py`
@@ -162,7 +163,7 @@
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | Backend prompt compiler tests | `python -m pytest` in `backend` | Health, config, and prompt compiler tests pass | 9 passed | Pass |
-| Professional score differentiation | TestClient professional compile | Candidate scores differ | production_safe 90, style_exploration 88, high_detail 84 | Pass |
+| Mode score differentiation | TestClient normal/professional compile | Normal is compact and lower, professional differs by direction | quick_start 71; production_safe 85, style_exploration 80, high_detail 75 | Pass |
 | Frontend unit tests | `npm test` in `frontend` | Request helper and config helper tests pass | 3 files, 9 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 | Frontend dev HTML | `GET http://127.0.0.1:4173/` | Vite serves app HTML | HTML returned | Pass |

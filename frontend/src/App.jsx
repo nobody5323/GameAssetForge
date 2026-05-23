@@ -40,6 +40,7 @@ const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background']
 const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
 const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
 const directionLabels = {
+  quick_start: '快速草稿',
   production_safe: '稳定生产',
   style_exploration: '风格探索',
   high_detail: '高细节展示',

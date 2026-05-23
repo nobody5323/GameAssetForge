@@ -8,7 +8,7 @@ from app.prompt.model_optimizers import PromptOptimizer
 from app.prompt.prompt_scorer import PromptScorer
 
 
-NORMAL_DIRECTIONS: list[PromptDirection] = ["production_safe"]
+NORMAL_DIRECTIONS: list[PromptDirection] = ["quick_start"]
 PROFESSIONAL_DIRECTIONS: list[PromptDirection] = [
     "production_safe",
     "style_exploration",

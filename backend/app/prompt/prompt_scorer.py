@@ -31,9 +31,10 @@ OVERCOMPLEXITY_TERMS = [
 ]
 
 DIRECTION_WEIGHTS = {
+    "quick_start": -8,
     "production_safe": 2,
-    "style_exploration": 0,
-    "high_detail": -4,
+    "style_exploration": -3,
+    "high_detail": -8,
 }
 
 
@@ -56,6 +57,8 @@ class PromptScorer:
             + self._direction_adjustment(text)
             - self._penalty_score(text)
         )
+        if score >= 96 and not self._has_exceptional_control(text):
+            score = 95
         return max(0, min(round(score), 100))
 
     def _specificity_score(self, final_prompt: str) -> int:
@@ -64,9 +67,9 @@ class PromptScorer:
         composition_hits = sum(1 for term in COMPOSITION_TERMS if term in text)
 
         score = 10
-        if word_count >= 35:
+        if word_count >= 45:
             score += 6
-        if word_count >= 70:
+        if word_count >= 90:
             score += 5
         if composition_hits >= 3:
             score += 5
@@ -87,8 +90,11 @@ class PromptScorer:
             score += 8
         if normalized_name in text:
             score += 5
-        if any(term in text for term in ASSET_USABILITY_TERMS):
+        usability_hits = sum(1 for term in ASSET_USABILITY_TERMS if term in text)
+        if usability_hits >= 3:
             score += 5
+        elif usability_hits:
+            score += 2
         if "sprite" in text or "asset" in text:
             score += 2
         return min(score, 20)
@@ -102,7 +108,7 @@ class PromptScorer:
         if target_model == "novelai":
             comma_count = prompt.finalPrompt.count(",")
             score = 6
-            if comma_count >= 8:
+            if comma_count >= 12:
                 score += 7
             if prompt.negativePrompt:
                 score += 4
@@ -126,13 +132,13 @@ class PromptScorer:
         theme_hits = sum(1 for tag in tags.get("theme", []) if tag.lower() in text)
         subject_hits = sum(1 for tag in tags.get("subject", []) if tag.lower() in text)
 
-        return min(20, technical_hits * 3 + theme_hits * 2 + subject_hits * 2)
+        return min(20, technical_hits * 2 + theme_hits * 2 + subject_hits * 2)
 
     def _negative_score(self, tags: dict[str, list[str]], text: str) -> int:
         negative_hits = sum(1 for tag in tags.get("negative", []) if tag.lower() in text)
-        if negative_hits >= 4:
+        if negative_hits >= 5:
             return 15
-        if negative_hits >= 2:
+        if negative_hits >= 3:
             return 10
         if negative_hits:
             return 5
@@ -159,3 +165,16 @@ class PromptScorer:
         if len(text) > 1400:
             penalty += 4
         return penalty
+
+    def _has_exceptional_control(self, text: str) -> bool:
+        return all(
+            term in text
+            for term in [
+                "clear silhouette",
+                "centered composition",
+                "readable at small size",
+                "simple background",
+                "game-ready asset",
+                "no cropped subject",
+            ]
+        )

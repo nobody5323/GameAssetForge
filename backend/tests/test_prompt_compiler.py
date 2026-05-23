@@ -39,8 +39,10 @@ def test_normal_mode_returns_one_gpt_image_candidate_with_fallback(monkeypatch):
     assert data["fallback"] is True
     assert data["threshold"] == 60
     assert len(data["candidates"]) == 1
+    assert data["candidates"][0]["direction"] == "quick_start"
     assert data["candidates"][0]["score"] >= 60
-    assert "Create a production-ready 2D game asset" in data["candidates"][0]["assets"][0]["finalPrompt"]
+    assert "Create a simple 2D game asset concept" in data["candidates"][0]["assets"][0]["finalPrompt"]
+    assert "Direction profile:" not in data["candidates"][0]["assets"][0]["finalPrompt"]
 
 
 def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
@@ -63,6 +65,7 @@ def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
     scores = [candidate["score"] for candidate in data["candidates"]]
     assert all(score >= 80 for score in scores)
     assert len(set(scores)) > 1
+    assert max(scores) < 100
 
 
 def test_novelai_prompt_uses_tag_oriented_structure(monkeypatch):
@@ -165,3 +168,20 @@ def test_scorer_penalizes_overcomplex_showcase_prompts():
         prompt=showcase_prompt,
         tags=tags,
     )
+
+
+def test_normal_mode_is_less_strict_than_professional(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    client = TestClient(app)
+
+    normal = client.post("/api/prompts/compile", json=BASE_REQUEST).json()["candidates"][0]
+    professional = client.post(
+        "/api/prompts/compile",
+        json={**BASE_REQUEST, "mode": "professional"},
+    ).json()["candidates"][0]
+
+    assert normal["direction"] == "quick_start"
+    assert professional["direction"] == "production_safe"
+    assert normal["score"] < professional["score"]
+    assert len(normal["assets"][0]["finalPrompt"]) < len(professional["assets"][0]["finalPrompt"])

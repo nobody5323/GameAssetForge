@@ -16,8 +16,8 @@
 
 本 PR 实现提示词工程阶段，不调用真实生图 API。用户在生成页填写游戏设定和素材清单后，可以先编译提示词：
 
-- 普通模式返回 1 套候选，阈值 60 分。
-- 专业模式返回 3 套整包候选，阈值 80 分。
+- 普通模式返回 1 套 `quick_start` 候选，阈值 60 分，输出更短，更适合一键快速试跑。
+- 专业模式返回 3 套整包候选，阈值 80 分，输出更完整，并对风格探索和展示型细节做更严格取舍。
 - 专业模式方向固定为 `production_safe`、`style_exploration`、`high_detail`。
 - GPT Image 输出自然语言型英文提示词。
 - NovelAI 输出 tag-oriented 提示词，并单独返回 negative prompt。
@@ -32,6 +32,7 @@
   - `gpt_image`：自然语言结构，包含 subject、style、composition、game usability、technical requirements 和 Avoid 约束。
   - `novelai`：逗号分隔标签，negative prompt 独立输出。
 - `prompt_scorer.py` 按 specificity、asset alignment、model fit、control coverage、negative constraints 和 overcomplexity penalty 给出 0-100 分。
+- 普通模式与专业模式使用不同 profile：普通模式是 `quick_start` 简洁提示词；专业模式才执行三方向探索。高细节方向如果牺牲游戏导入可用性，会被更严格扣分。
 - 评分设计参考文本到图像评估研究中的可区分维度：T2I-CompBench 强调属性绑定、对象关系与复杂组合；GenEval 强调对象存在、数量、位置、颜色等细粒度对齐；Promptist/OPT2I 类工作强调 prompt 优化应提升图文一致性和可控性。因此 PR5 不再只做字段完整性打分，而是对冗余、过度复杂背景和游戏资产可用性进行差异化处理。
 - `openai_llm_provider.py` 接入 OpenAI Responses API，文本模型通过 `OPENAI_PROMPT_MODEL` 配置；默认模型为 `gpt-5-mini`。OpenAI 官方模型页包含 GPT Image 系列图像模型和 GPT-5 系列文本模型，本 PR 只把 GPT Image 作为目标提示词 profile，不调用图像生成。
 - `config.py` 提供集中配置类，启动时读取环境变量，运行时可通过配置 API 更新；接口返回 Base URL、Provider、模型名和 `hasApiKey`，不会回显密钥明文。
@@ -113,7 +114,7 @@ http://127.0.0.1:4173/
 - 切换到 LLM 配置页，可保存 Provider、Base URL、模型名和 API Key。
 - 后端启动时点击 `COMPILE PROMPT` 能显示候选提示词。
 - 点击候选标题会更新选中状态。
-- 专业模式三套候选分数应体现方向差异，例如稳定生产通常高于高细节展示，避免全部 100 分。
+- 普通模式与专业模式应体现明显差异，例如普通模式输出短 prompt、约 60-75 分；专业模式输出完整方案、三方向分数有差异，避免全部 100 分。
 
 ## 依赖与来源说明
 
