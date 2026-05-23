@@ -22,6 +22,10 @@ Use 12 clear PRs so the project history demonstrates continuous development rath
 ## PR Template
 
 ```md
+## 新增/修改内容
+- 新增：
+- 修改：
+
 ## 功能描述
 本 PR 实现了 xxx 功能，用于 xxx。
 
