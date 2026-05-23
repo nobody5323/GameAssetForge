@@ -34,15 +34,20 @@ class PromptOptimizer:
     ) -> tuple[str, None]:
         prompt = "\n".join(
             [
-                "Use the local Mock Seed Provider; do not call an external image model.",
+                "Mock Seed Prompt Profile",
+                "Provider: local Mock Seed Provider",
+                "External model call: disabled",
                 f"Project context: {project_context}",
-                f"Mock seed type: {asset.type}",
+                f"Seed selection: choose backend/runtime/storage/mock-assets/{asset.type}.png, or create it if missing.",
+                f"Copy target: backend/runtime/storage/generated-assets/{{generationId}}/{asset.type}/{asset.name}.png",
                 f"Asset name: {asset.name}",
+                f"Asset type: {asset.type}",
                 f"Asset description: {asset.description}",
                 f"Direction profile: {direction}",
-                f"Style tags for metadata: {', '.join(tags['style'])}",
-                f"Theme tags for metadata: {', '.join(tags['theme'])}",
-                "Provider behavior: copy the matching local seed PNG into generated-assets and attach prompt metadata.",
+                f"Metadata style tags: {', '.join(tags['style'])}",
+                f"Metadata theme tags: {', '.join(tags['theme'])}",
+                "Metadata to attach: provider=mock, mock=true, promptHash, promptVersion, sourcePath, width=64, height=64.",
+                "Generation behavior: copy the matching local seed PNG into generated-assets and return the localPath.",
             ]
         )
         return prompt, None

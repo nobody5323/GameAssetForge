@@ -19,7 +19,7 @@
 - 扩展 Prompt Compiler 的 `targetModel`
   - 新增 `mock_seed`
   - 前端目标模型下拉新增 `Mock Seed`
-  - 后端为 `mock_seed` 生成本地 Provider 说明型 prompt，不调用外部生图模型
+  - 后端为 `mock_seed` 固定生成本地 Provider 说明型 prompt，不调用外部生图模型，也不交给真实 LLM 改写
 - 修复前端导航切换导致的状态重置
   - 将素材生成表单、Prompt Compiler 候选和 LLM 配置表单状态提升到 `App`
   - 切换到素材库、配置页、质量页后再返回，输入内容仍保留
@@ -37,7 +37,14 @@
 
 本 PR 不新增对外 HTTP 生成接口。PR7 会把 Prompt Compiler、Mock Provider 和 Asset Repository 串起来，实现 `POST /api/assets/generate`。
 
-为了让用户在 PR6 阶段能从界面选择 mock 路径，Prompt Compiler 的目标模型新增 `Mock Seed`。选择后，提示词会明确说明使用本地 Mock Seed Provider，并在 PR7 生成服务中接入真实 mock 文件复制流程。
+为了让用户在 PR6 阶段能从界面选择 mock 路径，Prompt Compiler 的目标模型新增 `Mock Seed`。选择后，提示词会明确说明使用本地 Mock Seed Provider，并包含：
+
+- `Seed selection`
+- `Copy target`
+- `Metadata to attach`
+- `External model call: disabled`
+
+PR7 会把这些字段接入真实 mock 文件复制流程。
 
 ## 实现思路
 
@@ -72,7 +79,7 @@ python -m pytest
 - 未知素材类型会生成可用 fallback PNG；
 - metadata 包含 `promptHash`、`promptVersion`、尺寸和 mock 标记。
 - 前端目标模型列表包含 `Mock Seed`。
-- `targetModel="mock_seed"` 时 Prompt Compiler 返回本地 mock provider profile。
+- `targetModel="mock_seed"` 时 Prompt Compiler 返回本地 mock provider profile，且固定走 `rule_fallback`。
 - 修改生成页字段后切换导航再返回，表单值不重置。
 
 ## 依赖与来源说明

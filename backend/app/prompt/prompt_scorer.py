@@ -118,11 +118,11 @@ class PromptScorer:
 
         if target_model == "mock_seed":
             score = 8
-            if "mock seed provider" in text:
+            if "mock seed prompt profile" in text and "mock seed provider" in text:
                 score += 5
-            if "local seed png" in text or "generated-assets" in text:
+            if "seed selection:" in text and "copy target:" in text:
                 score += 4
-            if "prompt metadata" in text:
+            if "metadata to attach:" in text and "localpath" in text:
                 score += 3
             return min(score, 20)
 
