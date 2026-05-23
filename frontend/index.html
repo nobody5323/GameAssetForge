@@ -6,7 +6,68 @@
     <title>GameAsset Forge</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main class="app-shell">
+        <aside class="sidebar">
+          <div class="brand-block">
+            <div class="brand-mark">GF</div>
+            <div>
+              <h1>GameAsset Forge</h1>
+              <p>AI 2D 游戏素材流水线</p>
+            </div>
+          </div>
+          <nav class="nav-list" aria-label="主导航">
+            <button class="active">素材生成</button>
+            <button>素材库</button>
+            <button>质量报告</button>
+            <button>导出交付</button>
+          </nav>
+        </aside>
+        <section class="workspace">
+          <header class="workspace-header">
+            <p>PR 2 前端基础界面</p>
+            <h2>素材生成</h2>
+          </header>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="section-heading">
+                <h3>生成任务</h3>
+                <span>静态首屏</span>
+              </div>
+              <div class="field-grid">
+                <label>
+                  项目名称
+                  <input value="Cyber Bamboo Platformer" readonly />
+                </label>
+                <label>
+                  游戏类型
+                  <input value="platformer" readonly />
+                </label>
+                <label>
+                  视觉风格
+                  <input value="pixel_art" readonly />
+                </label>
+                <label>
+                  主题
+                  <input value="cyber bamboo forest" readonly />
+                </label>
+              </div>
+              <button class="primary-button" type="button">后续 PR 接入生成</button>
+            </section>
+            <section class="panel preview-panel">
+              <div class="section-heading">
+                <h3>Prompt Preview</h3>
+              </div>
+              <pre>{
+  "projectName": "Cyber Bamboo Platformer",
+  "style": "pixel_art",
+  "assets": ["hero", "enemy", "coin", "tileset"]
+}</pre>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
