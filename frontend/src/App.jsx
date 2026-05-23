@@ -10,7 +10,7 @@ const views = [
 
 function App() {
   const [activeView, setActiveView] = useState('generate');
-  const currentView = views.find((view) => view.id === activeView) || views[0];
+  const currentView = views.find((v) => v.id === activeView) || views[0];
 
   return (
     <main className="app-shell">
@@ -19,7 +19,7 @@ function App() {
           <div className="brand-mark">GF</div>
           <div>
             <h1>GameAsset Forge</h1>
-            <p>AI 2D 游戏素材流水线</p>
+            <p>AI 2D Game Pipeline</p>
           </div>
         </div>
 
@@ -33,18 +33,23 @@ function App() {
             />
           ))}
         </nav>
+
+        <div className="sidebar-footer">
+          <span className="status-badge online">MOCK</span>
+          &nbsp; v0.1.0
+        </div>
       </aside>
 
       <section className="workspace">
         <header className="workspace-header">
-          <p>PR 2 前端基础界面</p>
-          <h2>{currentView.label}</h2>
+          <p>// workspace</p>
+          <h2>&gt; {currentView.label}</h2>
         </header>
 
-        {activeView === 'generate' ? <GeneratePage /> : null}
-        {activeView === 'library' ? <LibraryPage /> : null}
-        {activeView === 'quality' ? <QualityPage /> : null}
-        {activeView === 'export' ? <ExportPage /> : null}
+        {activeView === 'generate' && <GeneratePage />}
+        {activeView === 'library' && <LibraryPage />}
+        {activeView === 'quality' && <QualityPage />}
+        {activeView === 'export' && <ExportPage />}
       </section>
     </main>
   );
@@ -52,10 +57,9 @@ function App() {
 
 function NavButton({ view, active, onClick }) {
   const Icon = view.icon;
-
   return (
     <button className={active ? 'active' : ''} onClick={onClick}>
-      <Icon size={18} />
+      <Icon size={14} />
       {view.label}
     </button>
   );
@@ -67,7 +71,7 @@ function GeneratePage() {
       <section className="panel">
         <div className="section-heading">
           <h3>生成任务</h3>
-          <span>表单预览</span>
+          <span>FORM</span>
         </div>
         <div className="field-grid">
           <label>
@@ -94,25 +98,30 @@ function GeneratePage() {
         <label>
           描述
           <textarea
-            value="一个赛博竹林主题的 2D 横版闯关游戏，需要主角、敌人、金币和地砖素材。"
+            value="赛博竹林主题 2D 横版闯关游戏，需要主角、敌人、金币和地砖素材。"
             readOnly
           />
         </label>
         <button className="primary-button" type="button">
-          <Play size={18} />
-          后续 PR 接入生成
+          <Play size={14} />
+          START GENERATE
         </button>
       </section>
 
       <section className="panel preview-panel">
         <div className="section-heading">
           <h3>Prompt Preview</h3>
-          <FileJson size={18} />
+          <FileJson size={14} />
         </div>
         <pre>{`{
   "projectName": "Cyber Bamboo Platformer",
   "style": "pixel_art",
-  "assets": ["hero", "enemy", "coin", "tileset"]
+  "assets": [
+    "hero",
+    "enemy",
+    "coin",
+    "tileset"
+  ]
 }`}</pre>
       </section>
     </div>
@@ -131,18 +140,18 @@ function LibraryPage() {
     <section className="panel">
       <div className="section-heading">
         <h3>素材库</h3>
-        <span>静态布局</span>
+        <span>{samples.length} ASSETS</span>
       </div>
       <div className="asset-grid">
         {samples.map((asset) => (
           <article className="asset-card" key={asset.name}>
             <div className="asset-thumb">
-              <Image size={32} />
+              <Image size={28} />
             </div>
-            <div>
+            <div className="asset-card-info">
               <h4>{asset.name}</h4>
               <p>{asset.type}</p>
-              <span>Quality {asset.score}/100</span>
+              <span className="score">QS {asset.score}/100</span>
             </div>
           </article>
         ))}
@@ -157,17 +166,17 @@ function QualityPage() {
   return (
     <section className="panel">
       <div className="quality-summary">
-        <ShieldCheck size={44} />
+        <ShieldCheck size={36} className="quality-icon" />
         <div>
-          <h3>Asset Quality Inspector</h3>
-          <p>后续 PR 将接入真实评分数据。</p>
+          <h3>Quality Inspector</h3>
+          <p>后续 PR 接入评分数据</p>
         </div>
       </div>
       <div className="check-list">
         {checks.map((check) => (
           <div className="check-row" key={check}>
             <strong>{check}</strong>
-            <span>待接入</span>
+            <span>--/--</span>
           </div>
         ))}
       </div>
@@ -178,12 +187,12 @@ function QualityPage() {
 function ExportPage() {
   return (
     <section className="panel export-panel">
-      <Archive size={44} />
+      <Archive size={36} className="export-icon" />
       <h3>素材包导出</h3>
-      <p>后续 PR 将生成 `manifest.json` 并打包 zip 素材包。</p>
+      <p>生成 manifest.json 并打包 zip 素材包，后续 PR 接入。</p>
       <button className="primary-button" type="button">
-        <Archive size={18} />
-        后续 PR 接入导出
+        <Archive size={14} />
+        EXPORT ZIP
       </button>
     </section>
   );
