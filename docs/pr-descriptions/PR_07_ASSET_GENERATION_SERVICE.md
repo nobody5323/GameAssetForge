@@ -20,11 +20,15 @@
   - 展示 `generationId`、素材名、类型、本地路径、provider 和 prompt hash
   - 默认目标模型改为 `Mock Seed`，保证无 API Key 也能演示
 - 修复前端可见中文乱码
-- 扩展 CORS，支持 Vite dev server `http://127.0.0.1:5173`
+- 扩展 CORS，支持 Vite dev server `http://127.0.0.1:4173`、`http://127.0.0.1:4174`
+- 新增后端静态文件挂载 `/runtime`，用于浏览器直接访问生成的 PNG 图片
+- 新增前端 `buildAssetPreviewUrl()`，将后端 `localPath` 转为浏览器可加载的图片 URL
+- 新增生成结果图片缩略图，`GeneratedAssetsPanel` 嵌入 `<img>` 标签展示素材预览
+- 前端 Vite dev server 端口改为 4174，避免端口冲突
 
 ## 功能描述
 
-本 PR 完成素材生成主链路的第一版闭环。用户在前端填写素材需求后，可以直接点击 `GENERATE ASSETS`，后端会先编译提示词，再通过 Mock Provider 生成本地 PNG 文件，最后把素材记录持久化到本地 JSON 仓库。
+本 PR 完成素材生成主链路的第一版闭环。用户在前端填写素材需求后，可以直接点击 `GENERATE ASSETS`，后端会先编译提示词，再通过 Mock Provider 生成本地 PNG 文件，最后把素材记录持久化到本地 JSON 仓库。生成的图片通过后端 `/runtime` 静态文件挂载点直接在浏览器中预览展示。
 
 本 PR 不接入真实生图模型，仍使用 `mock_seed` 与 `MockImageProvider` 保证比赛演示时无 API Key 也能运行。
 
@@ -48,21 +52,21 @@ python -m pytest
 已验证：
 
 ```text
-15 passed
+16 passed
 ```
 
 前端：
 
 ```bash
 cd frontend
-npm test
+npx vitest run
 npm run build
 ```
 
 已验证：
 
 ```text
-4 test files, 12 tests passed
+5 test files, 15 tests passed
 vite build completed
 ```
 
@@ -70,7 +74,7 @@ vite build completed
 
 ```text
 POST http://127.0.0.1:8000/api/assets/generate
-Origin: http://127.0.0.1:5173
+Origin: http://127.0.0.1:4174
 ```
 
 已验证返回：
@@ -78,19 +82,27 @@ Origin: http://127.0.0.1:5173
 ```json
 {
   "status": 200,
-  "cors": "http://127.0.0.1:5173",
+  "cors": "http://127.0.0.1:4174",
   "provider": "mock",
-  "assetCount": 1,
+  "assetCount": 4,
   "localPath": "runtime/storage/generated-assets/{generationId}/enemy/bamboo_slime.png"
 }
 ```
 
+静态文件验证：
+
+```bash
+curl http://127.0.0.1:8000/runtime/storage/generated-assets/{generationId}/character/hero.png
+# 返回 200，content-type: image/png
+```
+
 浏览器验证：
 
-- Vite 页面可挂载
-- 页面显示 `GENERATE ASSETS`
+- Vite 页面可挂载，像素风暗色主题渲染正常
 - 页面默认目标模型为 `Mock Seed`
-- 浏览器控制台无 React 挂载错误
+- 点击 GENERATE ASSETS 后，生成结果面板展示 4 个素材卡片（含图片缩略图）
+- 图片通过后端 `/runtime` 静态文件服务正确加载
+- 候选提示词面板展示编译结果
 
 ## 依赖与来源说明
 
