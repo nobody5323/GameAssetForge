@@ -185,6 +185,10 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+.compact-heading {
+  margin-top: 18px;
+}
+
 .section-heading h3 {
   margin: 0;
   font-family: var(--pixel-font);
@@ -235,6 +239,12 @@ textarea {
   background: var(--bg-input);
   font-family: var(--body-font);
   font-size: 13px;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--accent);
 }
 
 input:focus,
@@ -297,6 +307,54 @@ textarea {
 .secondary-button:hover {
   border-color: var(--accent-cyan);
   color: var(--accent-cyan);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 2px solid var(--border-hi);
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.icon-button.danger:hover {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+/* ── Generation Form ── */
+
+.asset-form-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.asset-form-row {
+  display: grid;
+  grid-template-columns: 64px 130px minmax(120px, 0.7fr) minmax(180px, 1fr) 38px;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border: 2px solid var(--border);
+  background: var(--bg-main);
+}
+
+.asset-form-row label {
+  margin-bottom: 0;
+}
+
+.checkbox-label {
+  justify-items: center;
+  text-align: center;
 }
 
 /* ── Preview Panel ── */
@@ -474,7 +532,8 @@ textarea {
   }
 
   .content-grid,
-  .field-grid {
+  .field-grid,
+  .asset-form-row {
     grid-template-columns: 1fr;
   }
 
