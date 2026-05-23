@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 5
+PR 6
 
 ## Phases
 
@@ -90,7 +90,22 @@ PR 5
 - [x] Run frontend tests.
 - [x] Run frontend production build.
 - [x] Verify frontend dev HTML is served locally.
-- [ ] Push PR 5 branch.
+- [x] Push PR 5 branch.
+- **Status:** complete
+
+### Phase 13: PR 6 Mock Image Provider
+- [x] Create `feature/pr-06-mock-image-provider` from latest `origin/main`.
+- [x] Add image provider request/response models.
+- [x] Add `ImageProvider.generate()` interface.
+- [x] Add `MockImageProvider`.
+- [x] Add standard-library PNG writer for runtime mock assets.
+- [x] Add unit tests for generated paths, metadata, seed reuse, and unknown asset types.
+- [x] Add PR 6 description document.
+- **Status:** complete
+
+### Phase 14: PR 6 Verification
+- [x] Run backend tests.
+- [ ] Push PR 6 branch.
 - **Status:** in_progress
 
 ## Key Questions

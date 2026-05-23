@@ -19,9 +19,38 @@ class PromptOptimizer:
         direction: PromptDirection,
         project_context: str,
     ) -> tuple[str, str | None]:
+        if target_model == "mock_seed":
+            return self._mock_seed_prompt(asset, tags, direction, project_context)
         if target_model == "novelai":
             return self._novelai_prompt(asset, tags, direction, project_context)
         return self._gpt_image_prompt(asset, tags, direction, project_context)
+
+    def _mock_seed_prompt(
+        self,
+        asset: PromptAssetRequest,
+        tags: dict[str, list[str]],
+        direction: PromptDirection,
+        project_context: str,
+    ) -> tuple[str, None]:
+        prompt = "\n".join(
+            [
+                "Mock Seed Prompt Profile",
+                "Provider: local Mock Seed Provider",
+                "External model call: disabled",
+                f"Project context: {project_context}",
+                f"Seed selection: choose backend/runtime/storage/mock-assets/{asset.type}.png, or create it if missing.",
+                f"Copy target: backend/runtime/storage/generated-assets/{{generationId}}/{asset.type}/{asset.name}.png",
+                f"Asset name: {asset.name}",
+                f"Asset type: {asset.type}",
+                f"Asset description: {asset.description}",
+                f"Direction profile: {direction}",
+                f"Metadata style tags: {', '.join(tags['style'])}",
+                f"Metadata theme tags: {', '.join(tags['theme'])}",
+                "Metadata to attach: provider=mock, mock=true, promptHash, promptVersion, sourcePath, width=64, height=64.",
+                "Generation behavior: copy the matching local seed PNG into generated-assets and return the localPath.",
+            ]
+        )
+        return prompt, None
 
     def _gpt_image_prompt(
         self,

@@ -8,6 +8,7 @@ export const promptModes = [
 export const targetModels = [
   { id: 'gpt_image', label: 'GPT Image' },
   { id: 'novelai', label: 'NovelAI' },
+  { id: 'mock_seed', label: 'Mock Seed' },
 ];
 
 export function buildPromptCompileRequest(form, options) {

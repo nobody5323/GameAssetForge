@@ -15,6 +15,17 @@ class PromptCompiler:
         threshold = 80 if request.mode == "professional" else 60
         preferred_provider = llm_runtime_config.provider
 
+        if request.targetModel == "mock_seed":
+            candidates = self.rule_provider.compile_prompts(request, tags)
+            return PromptCompileResponse(
+                mode=request.mode,
+                targetModel=request.targetModel,
+                provider=self.rule_provider.provider_name,
+                fallback=True,
+                threshold=threshold,
+                candidates=candidates,
+            )
+
         if preferred_provider == "openai":
             try:
                 candidates = self.openai_provider.compile_prompts(request, tags)

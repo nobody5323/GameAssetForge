@@ -46,8 +46,27 @@ const directionLabels = {
   high_detail: '高细节展示',
 };
 
+const defaultPromptOptions = {
+  mode: 'normal',
+  targetModel: 'gpt_image',
+};
+
+const defaultCompileState = {
+  loading: false,
+  error: '',
+  response: null,
+  selectedCandidateId: '',
+};
+
 function App() {
   const [activeView, setActiveView] = useState('generate');
+  const [generationForm, setGenerationForm] = useState(defaultGenerationForm);
+  const [submitState, setSubmitState] = useState('等待输入');
+  const [promptOptions, setPromptOptions] = useState(defaultPromptOptions);
+  const [compileState, setCompileState] = useState(defaultCompileState);
+  const [llmConfigForm, setLlmConfigForm] = useState(defaultLlmConfigForm);
+  const [llmConfigStatus, setLlmConfigStatus] = useState('尚未读取后端配置');
+  const [llmConfigLoading, setLlmConfigLoading] = useState(false);
   const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
@@ -84,8 +103,28 @@ function App() {
           <h2>&gt; {currentView.label}</h2>
         </header>
 
-        {activeView === 'generate' && <GeneratePage />}
-        {activeView === 'config' && <ConfigPage />}
+        {activeView === 'generate' && (
+          <GeneratePage
+            form={generationForm}
+            setForm={setGenerationForm}
+            submitState={submitState}
+            setSubmitState={setSubmitState}
+            promptOptions={promptOptions}
+            setPromptOptions={setPromptOptions}
+            compileState={compileState}
+            setCompileState={setCompileState}
+          />
+        )}
+        {activeView === 'config' && (
+          <ConfigPage
+            form={llmConfigForm}
+            setForm={setLlmConfigForm}
+            status={llmConfigStatus}
+            setStatus={setLlmConfigStatus}
+            loading={llmConfigLoading}
+            setLoading={setLlmConfigLoading}
+          />
+        )}
         {activeView === 'library' && <LibraryPage />}
         {activeView === 'quality' && <QualityPage />}
         {activeView === 'export' && <ExportPage />}
@@ -104,20 +143,16 @@ function NavButton({ view, active, onClick }) {
   );
 }
 
-function GeneratePage() {
-  const [form, setForm] = useState(defaultGenerationForm);
-  const [submitState, setSubmitState] = useState('等待输入');
-  const [promptOptions, setPromptOptions] = useState({
-    mode: 'normal',
-    targetModel: 'gpt_image',
-  });
-  const [compileState, setCompileState] = useState({
-    loading: false,
-    error: '',
-    response: null,
-    selectedCandidateId: '',
-  });
-
+function GeneratePage({
+  form,
+  setForm,
+  submitState,
+  setSubmitState,
+  promptOptions,
+  setPromptOptions,
+  compileState,
+  setCompileState,
+}) {
   const requestPreview = useMemo(() => buildGenerationRequest(form), [form]);
   const promptRequestPreview = useMemo(
     () => buildPromptCompileRequest(form, promptOptions),
@@ -459,11 +494,7 @@ function TagGrid({ tags }) {
   );
 }
 
-function ConfigPage() {
-  const [form, setForm] = useState(defaultLlmConfigForm);
-  const [status, setStatus] = useState('尚未读取后端配置');
-  const [loading, setLoading] = useState(false);
-
+function ConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
   async function loadConfig() {
     setLoading(true);
     setStatus('正在读取配置');
