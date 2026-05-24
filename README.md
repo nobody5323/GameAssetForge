@@ -10,7 +10,7 @@ GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产
 - **图片处理**：纯标准库 PNG 解析（struct/zlib），无 Pillow 依赖
 - **导出**：`manifest.json` + zip（标准库 zipfile）
 - **生图**：Mock / OpenAI（GPT Image / DALL-E），无 Key 自动降级 Mock
-- **云存储**：Mock Cloud Provider 默认；可扩展七牛云 / AWS S3
+- **云存储**：Mock Cloud Provider 默认，已接入七牛云 Kodo
 
 ## 核心流程
 
@@ -57,7 +57,7 @@ npm run build                    # 生产构建
 ### 运行测试
 
 ```bash
-# 后端（60 个测试）
+# 后端（91 个测试）
 cd backend && python -m pytest
 
 # 前端（17 个测试）
@@ -67,7 +67,6 @@ cd frontend && npx vitest run
 ## Mock 模式（默认，无需 API Key）
 
 ```env
-IMAGE_PROVIDER=mock
 CLOUD_PROVIDER=mock
 ```
 
@@ -106,6 +105,7 @@ IMAGE_GEN_SIZE=1024x1024
 | `POST` | `/api/prompts/compile` | 编译提示词 |
 | `GET/POST` | `/api/config/llm` | LLM 配置读写 |
 | `GET/PUT` | `/api/config/image` | 生图 API 配置读写（OpenAI） |
+| `GET/PUT` | `/api/config/cloud` | 云存储配置读写（Mock / 七牛云） |
 | `POST` | `/api/assets/generate` | 生成素材 |
 | `GET` | `/api/assets?category=` | 素材库列表 |
 | `POST` | `/api/quality/inspect/{asset_id}` | 单素材质量检查 |
@@ -139,7 +139,7 @@ IMAGE_GEN_SIZE=1024x1024
 
 ### 3. Cloud Asset Hub
 
-Provider 模式的云端上传层，Mock 模式下返回 `cloud://mock/...` 格式模拟 URL。素材上传后 cloudUrl 被持久化到仓库，质量检查可验证交付就绪状态。预留七牛云 / AWS S3 Provider 扩展接口。
+Provider 模式的云端上传层，Mock 模式下返回 `cloud://mock/...` 格式模拟 URL。已接入七牛云 Kodo 对象存储，配置凭证后自动切换为真实上传，返回公开访问 URL。素材上传后 cloudUrl 被持久化到仓库。
 
 ## 项目结构
 
@@ -153,7 +153,8 @@ GameAssetForge/
 │   │   ├── routes/              # API 路由
 │   │   ├── services/            # 业务逻辑
 │   │   ├── providers/           # 抽象 Provider 层（图片/云存储/LLM）
-│   │   │   └── gpt_image_provider.py  # OpenAI GPT Image / DALL-E
+│   │   │   ├── gpt_image_provider.py  # OpenAI GPT Image / DALL-E
+│   │   │   └── qiniu_cloud_provider.py  # 七牛云 Kodo 上传
 │   │   ├── repositories/        # 数据访问层
 │   │   ├── prompt/              # Prompt Compiler 核心
 │   │   └── utils/               # PNG 工具等
@@ -168,6 +169,7 @@ GameAssetForge/
 │   │   ├── generationRequest.js # 请求构建器
 │   │   ├── promptCompiler.js    # 提示词编译助手
 │   │   ├── imageConfig.js       # 生图配置助手
+│   │   ├── cloudConfig.js        # 云存储配置助手
 │   │   └── llmConfig.js         # LLM 配置助手
 │   ├── package.json
 │   └── vite.config.js

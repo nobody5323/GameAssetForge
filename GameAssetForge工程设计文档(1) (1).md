@@ -560,7 +560,6 @@ QINIU_ACCESS_KEY=your_access_key
 QINIU_SECRET_KEY=your_secret_key
 QINIU_BUCKET=your_bucket_name
 QINIU_DOMAIN=https://your-cdn-domain.example.com
-IMAGE_PROVIDER=mock
 ```
 
 ### 12.3 上传结果结构
