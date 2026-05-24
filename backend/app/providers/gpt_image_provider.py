@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import re
 from pathlib import Path
 
 import httpx
@@ -64,7 +65,12 @@ class GptImageProvider(ImageProvider):
         )
 
     def _call_chat_api(self, prompt: str) -> tuple[str, str | None]:
-        """Call Chat Completions API for gpt-image-2 and return (base64, revised_prompt)."""
+        """Call Chat Completions API for gpt-image-2 and return (base64, revised_prompt).
+
+        Handles multiple response formats from different providers:
+        - OpenAI official: message.annotations[].image.b64_json
+        - Third-party proxies: message.content with markdown image URL
+        """
         api_key = image_runtime_config.api_key
         _require_ascii(api_key, "OpenAI API Key")
 
@@ -92,9 +98,11 @@ class GptImageProvider(ImageProvider):
             "Chat Completions",
         )
 
-        # gpt-image-2 returns image data in message.annotations
+        message = data["choices"][0]["message"]
+
+        # Try annotations format (OpenAI official)
         try:
-            annotations = data["choices"][0]["message"].get("annotations", [])
+            annotations = message.get("annotations", [])
             for ann in annotations:
                 if ann.get("type") == "image":
                     image_data = ann.get("image", {})
@@ -103,11 +111,18 @@ class GptImageProvider(ImageProvider):
         except (KeyError, IndexError):
             pass
 
+        # Try content field with markdown image URL (third-party proxies)
+        content = message.get("content") or ""
+        image_url = _extract_image_url(content)
+        if image_url:
+            image_bytes = self._download_image(image_url)
+            return base64.b64encode(image_bytes).decode("ascii"), None
+
         raise RuntimeError(
             f"Chat Completions API returned unexpected format for model {model}. "
-            f"Expected image in message.annotations. "
             f"Response keys: {list(data.keys())}, "
-            f"choices: {len(data.get('choices', []))}"
+            f"choices: {len(data.get('choices', []))}, "
+            f"content: {content[:200] if content else 'empty'}"
         )
 
     def _call_dalle_api(self, prompt: str) -> tuple[str, str | None]:
@@ -159,6 +174,23 @@ class GptImageProvider(ImageProvider):
             ) from exc
         return response.json()
 
+    def _download_image(self, url: str) -> bytes:
+        """Download image bytes from a URL using httpx."""
+        try:
+            with httpx.Client(
+                timeout=image_runtime_config.get_client_kwargs().get("timeout", 120),
+                verify=True,
+            ) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                return response.content
+        except RuntimeError:
+            raise
+        except httpx.RequestError as exc:
+            raise RuntimeError(
+                f"Failed to download image from {url}: {exc}"
+            ) from exc
+
     def _destination_path(self, request: ImageGenerationRequest) -> Path:
         generation_id = _safe_slug(request.generationId)
         asset_type = _safe_slug(request.assetType)
@@ -177,6 +209,29 @@ def _raise_on_api_error(response: httpx.Response, api_label: str) -> None:
     raise RuntimeError(
         f"Image API ({api_label}) returned HTTP {response.status_code}: {body}"
     )
+
+
+# Matches markdown image syntax: ![alt](url) or ![image](url)
+_MD_IMAGE_RE = re.compile(r"!\[.*?\]\((\S+?)\)")
+# Fallback: bare image URL (png/jpg/jpeg/webp)
+_BARE_URL_RE = re.compile(
+    r"(https?://\S+\.(?:png|jpg|jpeg|webp)(?:\?\S*)?)", re.IGNORECASE
+)
+
+
+def _extract_image_url(content: str) -> str | None:
+    """Extract the first image URL from a chat completion content string."""
+    if not content:
+        return None
+    # Try markdown image syntax first
+    m = _MD_IMAGE_RE.search(content)
+    if m:
+        return m.group(1)
+    # Fallback to bare image URL
+    m = _BARE_URL_RE.search(content)
+    if m:
+        return m.group(1)
+    return None
 
 
 def _safe_slug(value: str) -> str:
