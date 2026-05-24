@@ -142,8 +142,19 @@ PR 11
 - [x] Add PR 9 description document.
 - **Status:** complete
 
-### Phase 20: PR 9 Verification
-- [x] Run backend tests (30 passed).
+### Phase 21: PR 10 Quality Report Page
+- [x] Create `feature/pr-10-quality-report-page` from latest `origin/main`.
+- [x] Add `fetchQualityReport()` frontend API helper.
+- [x] Rewrite `QualityPage` with generation selector, overall score ring, per-asset check breakdown.
+- [x] Add quality report CSS: score ring, stats cards, check rows with pass/fail coloring.
+- [x] Add frontend test for `fetchQualityReport`.
+- [x] Add PR 10 description document.
+- **Status:** complete
+
+### Phase 22: PR 10 Verification
+- [x] Backend 34 tests passed.
+- [x] Frontend 15 tests passed.
+- [x] Frontend build succeeded.
 - **Status:** complete
 
 ### Phase 21: PR 10 Quality Report Page

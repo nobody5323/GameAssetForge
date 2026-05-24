@@ -5,6 +5,7 @@ import {
   exportGeneration,
   fetchAssets,
   fetchExportableGenerations,
+  fetchQualityReport,
   summarizeGeneratedAssets,
 } from './assetGeneration.js';
 
@@ -34,8 +35,6 @@ describe('buildAssetPreviewUrl', () => {
 
 describe('fetchAssets', () => {
   it('builds the correct URL without category filter', () => {
-    // fetchAssets is an async function that calls fetch — we test the URL
-    // construction by verifying the function signature and export
     expect(typeof fetchAssets).toBe('function');
   });
 });
@@ -49,5 +48,11 @@ describe('fetchExportableGenerations', () => {
 describe('exportGeneration', () => {
   it('is a function exported from the module', () => {
     expect(typeof exportGeneration).toBe('function');
+  });
+});
+
+describe('fetchQualityReport', () => {
+  it('is exported as a function', () => {
+    expect(typeof fetchQualityReport).toBe('function');
   });
 });

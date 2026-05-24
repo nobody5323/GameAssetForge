@@ -321,13 +321,7 @@
 - Actions taken:
   - Created `feature/pr-10-quality-report-page` from latest `origin/main`.
   - Added `fetchQualityReport()` frontend API helper in `assetGeneration.js`.
-  - Rewrote QualityPage from static placeholder to dynamic report page:
-    - Auto-loads generation IDs from asset library on mount.
-    - Generation selector dropdown + manual input.
-    - Score ring with color coding (≥80 green, ≥60 yellow, <60 red).
-    - Stats cards: assetCount, passCount (≥60), failCount (<60).
-    - Per-asset cards with check-by-check breakdown showing pass/fail icons and deduction amounts.
-    - Loading / error / empty states.
+  - Rewrote QualityPage from static placeholder to dynamic report page.
   - Added quality report CSS (score ring, stats, check rows).
   - Added frontend test for fetchQualityReport export.
   - Added PR10 description document.
@@ -343,7 +337,7 @@
 ## PR10 Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 16 tests pass | 4 files, 16 tests passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 15 tests pass | 4 files, 15 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
 ### Phase 11: PR 11 Manifest & Zip Export
@@ -357,7 +351,7 @@
   - Registered export router in `main.py`.
   - Added 8 backend tests covering zip validity, manifest content, API endpoints, 404, and edge cases.
   - Added `fetchExportableGenerations()` and `exportGeneration()` frontend API helpers.
-  - Rewrote ExportPage from static placeholder to dynamic UI with generation selector, download trigger, result card, and all states.
+  - Rewrote ExportPage from static placeholder to dynamic UI.
   - Added export page CSS styles.
   - Added PR11 description document.
   - Committed in 3 commits: feat (backend) → feat (frontend) → docs.
@@ -382,7 +376,7 @@
 |------|-------|----------|--------|--------|
 | Backend full suite | `python -m pytest` in `backend` | All 42 tests pass | 42 passed | Pass |
 | Backend export tests | `python -m pytest tests/test_export_service.py -v` | 8 export tests pass | 8 passed | Pass |
-| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 16 tests pass | 4 files, 16 tests passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 18 tests pass | 4 files, 18 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
 ## 5-Question Reboot Check
