@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 9
+PR 11
 
 ## Phases
 
@@ -144,6 +144,40 @@ PR 9
 
 ### Phase 20: PR 9 Verification
 - [x] Run backend tests (30 passed).
+- **Status:** complete
+
+### Phase 21: PR 10 Quality Report Page
+- [x] Create `feature/pr-10-quality-report-page` from latest `origin/main`.
+- [x] Add `fetchQualityReport()` frontend API helper.
+- [x] Rewrite QualityPage with score ring, check breakdown, generation selector.
+- [x] Add quality report CSS (score ring, pass/fail stats, check rows).
+- [x] Add frontend test for fetchQualityReport.
+- [x] Add PR 10 description document.
+- **Status:** complete
+
+### Phase 22: PR 10 Verification
+- [x] Run frontend tests and build.
+- **Status:** complete
+
+### Phase 23: PR 11 Manifest & Zip Export
+- [x] Create `feature/pr-11-manifest-and-zip-export` from latest `origin/main`.
+- [x] Add `Manifest`, `ManifestAsset`, `ExportResponse` Pydantic models.
+- [x] Implement `ExportService` with manifest generation, zip packaging, quality score integration.
+- [x] Add `POST /api/exports/{generation_id}` zip download endpoint.
+- [x] Add `GET /api/exports` generation list endpoint.
+- [x] Add `projectName` to AssetRecord and persist in generation service.
+- [x] Register export router in `main.py`.
+- [x] Add 8 backend tests covering zip validity, manifest content, API endpoints, edge cases.
+- [x] Add `fetchExportableGenerations()` and `exportGeneration()` frontend API helpers.
+- [x] Rewrite ExportPage with generation selector, download trigger, result card.
+- [x] Add export page CSS styles.
+- [x] Add PR 11 description document.
+- **Status:** complete
+
+### Phase 24: PR 11 Verification
+- [x] Run backend tests (42 passed).
+- [x] Run frontend tests (16 passed).
+- [x] Run frontend production build.
 - **Status:** complete
 
 ## Key Questions
