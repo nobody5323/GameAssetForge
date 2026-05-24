@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 8
+PR 9
 
 ## Phases
 
@@ -130,10 +130,20 @@ PR 8
 - [x] Add PR 8 description document.
 - **Status:** complete
 
-### Phase 18: PR 8 Verification
-- [x] Run backend tests.
-- [x] Run frontend tests.
-- [x] Run frontend production build.
+### Phase 19: PR 9 Quality Inspector
+- [x] Create `feature/pr-09-quality-inspector` from latest `origin/main`.
+- [x] Add `QualityCheck`, `AssetQualityReport`, `GenerationQualityReport` Pydantic models.
+- [x] Implement `QualityService` with 7 checks: format, dimensions, naming, category, prompt, manifest, cloud readiness.
+- [x] Implement PNG IHDR parser using standard library `struct`.
+- [x] Add `POST /api/quality/inspect/{asset_id}` endpoint.
+- [x] Add `GET /api/quality/report/{generation_id}` endpoint.
+- [x] Register quality router in `main.py`.
+- [x] Add 11 tests covering all checks, scoring, API endpoints, edge cases.
+- [x] Add PR 9 description document.
+- **Status:** complete
+
+### Phase 20: PR 9 Verification
+- [x] Run backend tests (30 passed).
 - **Status:** complete
 
 ## Key Questions
