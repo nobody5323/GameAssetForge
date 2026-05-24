@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   Bot,
   CheckCircle2,
   FileJson,
   Image,
+  ImageOff,
+  Loader2,
   Plus,
   Play,
   RefreshCw,
@@ -14,6 +16,7 @@ import {
 } from 'lucide-react';
 import {
   buildAssetPreviewUrl,
+  fetchAssets,
   generateAssets,
   summarizeGeneratedAssets,
 } from './assetGeneration.js';
@@ -691,33 +694,129 @@ function ConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
 }
 
 function LibraryPage() {
-  const samples = [
-    { name: 'hero', type: 'character', score: 0 },
-    { name: 'bamboo_slime', type: 'enemy', score: 0 },
-    { name: 'coin', type: 'item', score: 0 },
-    { name: 'ground_tile', type: 'tileset', score: 0 },
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [category, setCategory] = useState('');
+
+  async function loadAssets(selectedCategory) {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchAssets(selectedCategory || undefined);
+      setAssets(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load assets');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAssets(category);
+  }, [category]);
+
+  const categoryCounts = assets.reduce(
+    (counts, asset) => {
+      counts[asset.assetType] = (counts[asset.assetType] || 0) + 1;
+      return counts;
+    },
+    { all: assets.length },
+  );
+
+  const filterButtons = [
+    { id: '', label: '全部', icon: Image },
+    ...assetTypes.map((type) => ({
+      id: type,
+      label: type,
+      icon: Image,
+    })),
   ];
 
   return (
-    <section className="panel">
+    <section className="panel library-panel">
       <div className="section-heading">
         <h3>素材库</h3>
-        <span>{samples.length} ASSETS</span>
+        <span>
+          {loading ? 'LOADING' : `${assets.length} ASSETS`}
+        </span>
       </div>
-      <div className="asset-grid">
-        {samples.map((asset) => (
-          <article className="asset-card" key={asset.name}>
-            <div className="asset-thumb">
-              <Image size={28} />
-            </div>
-            <div className="asset-card-info">
-              <h4>{asset.name}</h4>
-              <p>{asset.type}</p>
-              <span className="score">QS {asset.score}/100</span>
-            </div>
-          </article>
+
+      <div className="library-filter-bar">
+        {filterButtons.map((btn) => (
+          <button
+            key={btn.id}
+            className={`filter-chip ${category === btn.id ? 'active' : ''}`}
+            type="button"
+            onClick={() => setCategory(btn.id)}
+          >
+            <btn.icon size={12} />
+            {btn.label}
+            {categoryCounts[btn.id] !== undefined && (
+              <span className="filter-count">{categoryCounts[btn.id]}</span>
+            )}
+          </button>
         ))}
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => loadAssets(category)}
+          disabled={loading}
+        >
+          <RefreshCw size={14} />
+          REFRESH
+        </button>
       </div>
+
+      {loading && (
+        <div className="empty-state">
+          <Loader2 size={28} />
+          正在从素材仓库加载...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="empty-state">
+          <p className="error-line">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && assets.length === 0 && (
+        <div className="empty-state">
+          <ImageOff size={28} />
+          {category
+            ? `暂无 "${category}" 类型的素材，请先生成素材。`
+            : '素材库为空，请先在生成页创建素材。'}
+        </div>
+      )}
+
+      {!loading && !error && assets.length > 0 && (
+        <div className="asset-grid">
+          {assets.map((asset) => (
+            <article className="asset-card" key={asset.id}>
+              <div className="asset-thumb">
+                {asset.localPath ? (
+                  <img
+                    src={buildAssetPreviewUrl(asset.localPath)}
+                    alt={`${asset.assetName} preview`}
+                  />
+                ) : (
+                  <Image size={28} />
+                )}
+              </div>
+              <div className="asset-card-info">
+                <h4>{asset.assetName}</h4>
+                <p>{asset.assetType}</p>
+                <span className="score">
+                  QS {asset.qualityScore != null ? `${asset.qualityScore}/100` : '--'}
+                </span>
+                <small className="asset-gen-id">{asset.generationId}</small>
+                <small className="asset-provider">{asset.provider}</small>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
