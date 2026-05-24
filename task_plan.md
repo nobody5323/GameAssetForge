@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 7
+PR 8
 
 ## Phases
 
@@ -119,12 +119,21 @@ PR 7
 - [x] Add PR 7 description document.
 - **Status:** complete
 
-### Phase 16: PR 7 Verification
+### Phase 17: PR 8 Asset Library
+- [x] Create `feature/pr-08-asset-library` from latest `origin/main`.
+- [x] Add `GET /api/assets?category=` route with optional category filter.
+- [x] Add `fetchAssets()` frontend API helper.
+- [x] Rewrite LibraryPage with dynamic data, filter chips, image thumbnails, and loading/empty/error states.
+- [x] Add filter chip and library panel CSS.
+- [x] Add backend tests for list, filter, empty category, and field completeness.
+- [x] Add frontend test for fetchAssets export.
+- [x] Add PR 8 description document.
+- **Status:** complete
+
+### Phase 18: PR 8 Verification
 - [x] Run backend tests.
 - [x] Run frontend tests.
 - [x] Run frontend production build.
-- [x] Run real HTTP generation request with Vite origin CORS.
-- [x] Push PR 7 branch.
 - **Status:** complete
 
 ## Key Questions

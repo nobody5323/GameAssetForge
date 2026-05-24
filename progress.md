@@ -241,14 +241,41 @@
   - `task_plan.md`
   - `progress.md`
 
-## PR7 Test Results
+### Phase 17: PR 8 Asset Library
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-08-asset-library` from latest `origin/main`.
+  - Added `GET /api/assets?category=` route in `asset_routes.py` with optional category filter.
+  - Added `fetchAssets(category?)` helper in frontend `assetGeneration.js`.
+  - Rewrote `LibraryPage` from static hardcoded samples to dynamic data-driven view:
+    - Fetches assets from backend on mount and on category change.
+    - Filter chip bar for all types (全部 / character / enemy / item / tileset / ui / background) with per-type counts.
+    - Real image thumbnails via `buildAssetPreviewUrl`.
+    - Loading spinner, empty state, and error state handling.
+    - REFRESH button for manual reload.
+  - Added filter chip CSS (`.filter-chip`, `.filter-chip.active`, `.filter-count`), library panel, and tweaked asset card info layout.
+  - Added 4 backend tests: list all, filter by category, empty category, field completeness.
+  - Added frontend test for `fetchAssets` export.
+  - Added PR8 description document.
+- Files created/modified:
+  - `backend/app/routes/asset_routes.py`
+  - `backend/tests/test_asset_generation_service.py`
+  - `frontend/src/assetGeneration.js`
+  - `frontend/src/assetGeneration.test.js`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `docs/pr-descriptions/PR_08_ASSET_LIBRARY.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR8 Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-| Backend service tests | `python -m pytest` in `backend` | Health, config, prompt compiler, mock provider, and generation API tests pass | 15 passed | Pass |
-| Frontend unit tests | `npm test` in `frontend` | Request, prompt, config, and generation helpers pass | 4 files, 12 tests passed | Pass |
+| Backend tests | `python -m pytest` in `backend` | All 19 tests pass | 19 passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 14 tests pass | 4 files, 14 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
-| Real generation API | `POST /api/assets/generate` with `Origin: http://127.0.0.1:5173` | CORS allowed and mock asset returned | status 200, provider `mock`, localPath under generated-assets | Pass |
-| Browser mount check | Vite dev page | App renders `GENERATE ASSETS` and `Mock Seed` | Rendered with no console errors | Pass |
+| GET /api/assets | `curl http://127.0.0.1:8000/api/assets` | Returns JSON array of assets | Returns all generated assets | Pass |
+| GET /api/assets?category=character | Filter by character type | Only character assets returned | Filtered correctly | Pass |
 
 ## 5-Question Reboot Check
 | Question | Answer |
