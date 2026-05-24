@@ -9,8 +9,8 @@ GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产
 - **存储**：JSON 文件数据库 + `storage/` + `runtime/` 目录
 - **图片处理**：纯标准库 PNG 解析（struct/zlib），无 Pillow 依赖
 - **导出**：`manifest.json` + zip（标准库 zipfile）
-- **生图**：Mock Provider 默认；可扩展 OpenAI / NovelAI / Stable Diffusion
-- **云存储**：Mock Cloud Provider 默认；可扩展七牛云 / AWS S3
+- **生图**：Mock / OpenAI（GPT Image / DALL-E），无 Key 自动降级 Mock
+- **云存储**：Mock Cloud Provider 默认，已接入七牛云 Kodo
 
 ## 核心流程
 
@@ -19,7 +19,7 @@ GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产
     ↓
 Prompt Compiler 编译结构化提示词（支持 normal / professional 模式）
     ↓
-Image Provider 生成 PNG 素材（Mock / GPT / NovelAI）
+Image Provider 生成 PNG 素材（Mock / GPT Image）
     ↓
 Asset Quality Inspector 质量检查（7 项扣分制，参考 T2I-CompBench）
     ↓
@@ -57,7 +57,7 @@ npm run build                    # 生产构建
 ### 运行测试
 
 ```bash
-# 后端（49 个测试）
+# 后端（91 个测试）
 cd backend && python -m pytest
 
 # 前端（17 个测试）
@@ -67,7 +67,6 @@ cd frontend && npx vitest run
 ## Mock 模式（默认，无需 API Key）
 
 ```env
-IMAGE_PROVIDER=mock
 CLOUD_PROVIDER=mock
 ```
 
@@ -84,6 +83,20 @@ OPENAI_API_KEY=sk-...
 OPENAI_PROMPT_MODEL=gpt-5-mini
 ```
 
+### 接入真实生图 API（可选）
+
+在 **Image API 配置** 页面或 `.env` 中设置：
+
+```env
+# OpenAI
+IMAGE_GEN_PROVIDER=openai
+IMAGE_GEN_API_KEY=sk-...
+IMAGE_GEN_MODEL=gpt-image-2
+IMAGE_GEN_SIZE=1024x1024
+```
+
+在素材生成页选择目标模型（GPT Image）后，系统自动调用对应的真实 API。无凭证时自动降级为 Mock Provider。
+
 ## API 端点
 
 | 方法 | 路径 | 说明 |
@@ -91,6 +104,8 @@ OPENAI_PROMPT_MODEL=gpt-5-mini
 | `GET` | `/api/health` | 健康检查 |
 | `POST` | `/api/prompts/compile` | 编译提示词 |
 | `GET/POST` | `/api/config/llm` | LLM 配置读写 |
+| `GET/PUT` | `/api/config/image` | 生图 API 配置读写（OpenAI） |
+| `GET/PUT` | `/api/config/cloud` | 云存储配置读写（Mock / 七牛云） |
 | `POST` | `/api/assets/generate` | 生成素材 |
 | `GET` | `/api/assets?category=` | 素材库列表 |
 | `POST` | `/api/quality/inspect/{asset_id}` | 单素材质量检查 |
@@ -104,7 +119,7 @@ OPENAI_PROMPT_MODEL=gpt-5-mini
 
 ### 1. Prompt Compiler
 
-将用户自然语言需求拆分为游戏类型、主题、风格、素材类型，编译成适合不同模型（GPT Image / NovelAI / Mock Seed）的结构化提示词。
+将用户自然语言需求拆分为游戏类型、主题、风格、素材类型，编译成适合不同模型（GPT Image / Mock Seed）的结构化提示词。
 - normal 模式：快速生成紧凑提示词
 - professional 模式：三个方向（production_safe / style_exploration / high_detail）探索候选
 - 自动规则降级：无 LLM 密钥时使用规则引擎生成
@@ -124,7 +139,7 @@ OPENAI_PROMPT_MODEL=gpt-5-mini
 
 ### 3. Cloud Asset Hub
 
-Provider 模式的云端上传层，Mock 模式下返回 `cloud://mock/...` 格式模拟 URL。素材上传后 cloudUrl 被持久化到仓库，质量检查可验证交付就绪状态。预留七牛云 / AWS S3 Provider 扩展接口。
+Provider 模式的云端上传层，Mock 模式下返回 `cloud://mock/...` 格式模拟 URL。已接入七牛云 Kodo 对象存储，配置凭证后自动切换为真实上传，返回公开访问 URL。素材上传后 cloudUrl 被持久化到仓库。
 
 ## 项目结构
 
@@ -138,6 +153,8 @@ GameAssetForge/
 │   │   ├── routes/              # API 路由
 │   │   ├── services/            # 业务逻辑
 │   │   ├── providers/           # 抽象 Provider 层（图片/云存储/LLM）
+│   │   │   ├── gpt_image_provider.py  # OpenAI GPT Image / DALL-E
+│   │   │   └── qiniu_cloud_provider.py  # 七牛云 Kodo 上传
 │   │   ├── repositories/        # 数据访问层
 │   │   ├── prompt/              # Prompt Compiler 核心
 │   │   └── utils/               # PNG 工具等
@@ -151,6 +168,8 @@ GameAssetForge/
 │   │   ├── assetGeneration.js   # API 助手
 │   │   ├── generationRequest.js # 请求构建器
 │   │   ├── promptCompiler.js    # 提示词编译助手
+│   │   ├── imageConfig.js       # 生图配置助手
+│   │   ├── cloudConfig.js        # 云存储配置助手
 │   │   └── llmConfig.js         # LLM 配置助手
 │   ├── package.json
 │   └── vite.config.js
@@ -182,4 +201,6 @@ GameAssetForge/
 - [x] manifest.json 可生成（含完整元数据和评分）
 - [x] zip 素材包可导出下载
 - [x] 云端上传或模拟上传状态可演示
+- [x] GPT Image (DALL-E) 真实生图接口可配置
+- [x] 前端 Image API 配置页可独立管理生图凭证
 - [x] README 包含启动说明、API 文档、原创功能说明

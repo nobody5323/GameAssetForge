@@ -10,6 +10,7 @@ class ImageGenerationRequest(BaseModel):
     style: str = Field(..., examples=["pixel_art"])
     theme: str = Field(..., examples=["cyber bamboo forest"])
     finalPrompt: str
+    negativePrompt: str | None = None
     promptVersion: str = "prompt-v1"
 
 

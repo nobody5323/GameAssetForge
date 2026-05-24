@@ -4,6 +4,7 @@ from app.models.prompt_models import (
     PromptCompileRequest,
     PromptDirection,
 )
+from app.prompt.chinese_translator import translate_chinese_text
 from app.prompt.model_optimizers import PromptOptimizer
 from app.prompt.prompt_scorer import PromptScorer
 
@@ -32,8 +33,16 @@ class RuleLlmProvider:
             PROFESSIONAL_DIRECTIONS if request.mode == "professional" else NORMAL_DIRECTIONS
         )
         threshold = 80 if request.mode == "professional" else 60
-        project_context = (
-            f"{request.projectName}, {request.gameType}, {request.theme}, {request.description}"
+        project_context = ", ".join(
+            filter(
+                None,
+                (
+                    translate_chinese_text(request.projectName),
+                    translate_chinese_text(request.gameType),
+                    translate_chinese_text(request.theme),
+                    translate_chinese_text(request.description),
+                ),
+            )
         )
 
         candidates: list[PromptCandidate] = []

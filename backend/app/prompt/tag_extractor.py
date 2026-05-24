@@ -1,50 +1,38 @@
 from app.models.prompt_models import PromptCompileRequest
+from app.prompt.chinese_translator import extract_chinese_tags, translate_chinese_text, _is_chinese_char
 
 
 STYLE_TAGS = {
-    "pixel_art": ["pixel art", "limited palette", "crisp edges"],
-    "cartoon": ["cartoon style", "bold outline", "clean shapes"],
-    "dark_fantasy": ["dark fantasy", "moody lighting", "ornate silhouette"],
-    "cyberpunk": ["cyberpunk", "neon accents", "high-tech details"],
+    "pixel_art": ["pixel art", "8-bit", "retro game"],
+    "cartoon": ["cartoon", "flat color", "simple background"],
+    "dark_fantasy": ["dark fantasy", "moody", "gothic"],
+    "cyberpunk": ["cyberpunk", "neon", "science fiction"],
 }
 
 ASSET_TAGS = {
-    "character": ["playable character", "clear silhouette"],
-    "enemy": ["enemy sprite", "readable threat shape"],
-    "item": ["collectible item", "icon-like shape"],
-    "tileset": ["tileable terrain", "seamless edges"],
-    "ui": ["game ui", "clean iconography"],
-    "background": ["2d background", "parallax-ready layer"],
-}
-
-KEYWORD_TAGS = {
-    "竹林": ["bamboo forest"],
-    "赛博": ["cyberpunk"],
-    "横版": ["side-scrolling"],
-    "闯关": ["platformer"],
-    "像素": ["pixel art"],
-    "金币": ["coin"],
-    "敌人": ["enemy"],
-    "主角": ["hero"],
-    "地砖": ["ground tile"],
-    "森林": ["forest environment"],
-    "霓虹": ["neon accents"],
+    "character": ["1girl"],
+    "enemy": ["monster"],
+    "item": ["item", "simple background"],
+    "tileset": ["scenery", "no humans"],
+    "ui": ["ui", "simple background"],
+    "background": ["scenery", "no humans"],
 }
 
 TECHNICAL_TAGS = [
-    "centered composition",
-    "clear silhouette",
-    "readable at small size",
     "simple background",
-    "game-ready asset",
 ]
 
 NEGATIVE_TAGS = [
-    "no text",
-    "no watermark",
-    "no blurry edges",
-    "no cropped subject",
-    "no complex background",
+    "lowres",
+    "bad anatomy",
+    "bad hands",
+    "worst quality",
+    "low quality",
+    "normal quality",
+    "jpeg artifacts",
+    "signature",
+    "watermark",
+    "blurry",
 ]
 
 
@@ -64,21 +52,34 @@ def extract_prompt_tags(request: PromptCompileRequest) -> dict[str, list[str]]:
     subject_tags = []
     for asset in request.assets:
         subject_tags.extend(ASSET_TAGS.get(asset.type, [asset.type.replace("_", " ")]))
-        subject_tags.append(asset.name.replace("_", " "))
+        subject_tags.append(translate_chinese_text(asset.name.replace("_", " ")))
 
-    theme_tags = [request.theme]
+    theme_tags = [translate_chinese_text(request.theme)]
     environment_tags = []
     mood_tags = []
 
-    lowered = text.lower()
-    for keyword, tags in KEYWORD_TAGS.items():
-        if keyword in text or keyword.lower() in lowered:
-            theme_tags.extend(tags)
+    # Extract Chinese keywords from the full concatenated text
+    translated_tags = extract_chinese_tags(text)
+    theme_tags.extend(translated_tags)
 
+    # Also translate the theme and description fields individually
+    if any(_is_chinese_char(c) for c in request.theme):
+        theme_tags.extend(extract_chinese_tags(request.theme))
+    if any(_is_chinese_char(c) for c in request.description):
+        theme_tags.extend(extract_chinese_tags(request.description))
+
+    # Extract subject tags from Chinese asset names and descriptions
+    for asset in request.assets:
+        if any(_is_chinese_char(c) for c in asset.name):
+            subject_tags.extend(extract_chinese_tags(asset.name))
+        if any(_is_chinese_char(c) for c in asset.description):
+            subject_tags.extend(extract_chinese_tags(asset.description))
+
+    lowered = text.lower()
     if "forest" in lowered or "竹林" in text or "森林" in text:
-        environment_tags.append("forest environment")
+        environment_tags.append("forest")
     if "cyber" in lowered or "赛博" in text:
-        mood_tags.extend(["neon atmosphere", "futuristic mood"])
+        mood_tags.extend(["neon", "futuristic"])
 
     return {
         "style": dedupe(style_tags),

@@ -2,12 +2,21 @@
 
 from pathlib import Path
 
+from app.config import cloud_runtime_config
 from app.models.asset_models import AssetRecord
 from app.providers.cloud_provider import CloudProvider
 from app.providers.mock_cloud_provider import MockCloudProvider
+from app.providers.qiniu_cloud_provider import QiniuCloudProvider
 from app.repositories.asset_repository import AssetRepository
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _create_cloud_provider() -> CloudProvider:
+    """According to config, return the right cloud provider."""
+    if cloud_runtime_config.provider == "qiniu" and cloud_runtime_config.is_qiniu_available():
+        return QiniuCloudProvider()
+    return MockCloudProvider()
 
 
 class CloudService:
@@ -18,7 +27,7 @@ class CloudService:
         provider: CloudProvider | None = None,
         repository: AssetRepository | None = None,
     ) -> None:
-        self._provider = provider or MockCloudProvider()
+        self._provider = provider or _create_cloud_provider()
         self._repository = repository or AssetRepository()
 
     @property

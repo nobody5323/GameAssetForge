@@ -44,7 +44,7 @@ def _generate_asset(client: TestClient, monkeypatch, asset_type="enemy", asset_n
 # ── 单元测试：PNG 工具函数 ──────────────────────────────────────────
 
 class TestReadPngDimensions:
-    def test_reads_64x64_from_mock_png(self):
+    def test_reads_512x512_from_mock_png(self):
         from app.providers.mock_image_provider import MockImageProvider
         from app.models.asset_models import ImageGenerationRequest
 
@@ -62,8 +62,8 @@ class TestReadPngDimensions:
         png_path = BACKEND_ROOT / result.localPath
         assert png_path.exists()
         width, height = _read_png_dimensions(png_path)
-        assert width == 64
-        assert height == 64
+        assert width == 512
+        assert height == 512
 
     def test_raises_on_non_png_file(self):
         tmp = BACKEND_ROOT / "runtime" / "storage" / "not_a_png.txt"
@@ -106,8 +106,8 @@ class TestSolidColorDetection:
 class TestDeductionScoring:
     """验证扣分制：满分 100，逐项扣分。"""
 
-    def test_mock_asset_scores_around_50(self, monkeypatch):
-        """Mock 素材（64x64 纯色）应因尺寸小+纯色+mock provider 被大幅扣分。"""
+    def test_mock_asset_scores_around_70(self, monkeypatch):
+        """Mock 素材（512x512 纯色）应因纯色+mock provider 被扣分，但尺寸达标。"""
         client = TestClient(app)
         asset = _generate_asset(client, monkeypatch, "character", "hero")
 
@@ -116,10 +116,10 @@ class TestDeductionScoring:
         assert isinstance(report, AssetQualityReport)
         assert report.maxScore == 100
 
-        # mock 64x64 纯色: 尺寸扣 ~18-25 + 纯色扣 15 + mock provider 扣 10 + cloudUrl 扣 15
-        # 预期: 100 - (18+15+10+15) ≈ 42 → 约 35-55 之间
-        assert 30 <= report.totalScore <= 60, (
-            f"预期 mock 素材得分在 30-60 之间，体现尺寸小+纯色+mock 的扣分，实际得分 {report.totalScore}"
+        # mock 512x512 纯色: 尺寸达标 0 + 纯色扣 15 + mock provider 扣 10 + cloudUrl 扣 15
+        # 预期: 100 - (15+10+15) ≈ 60 → 约 50-75 之间
+        assert 50 <= report.totalScore <= 75, (
+            f"预期 mock 素材得分在 50-75 之间，体现纯色+mock 的扣分，实际得分 {report.totalScore}"
         )
 
     def test_perfect_asset_scores_high(self, monkeypatch):

@@ -7,11 +7,11 @@ describe('buildPromptCompileRequest', () => {
   it('adds prompt mode and target model to the enabled asset request', () => {
     const request = buildPromptCompileRequest(defaultGenerationForm, {
       mode: 'professional',
-      targetModel: 'novelai',
+      targetModel: 'gpt_image',
     });
 
     expect(request.mode).toBe('professional');
-    expect(request.targetModel).toBe('novelai');
+    expect(request.targetModel).toBe('gpt_image');
     expect(request.assets).toHaveLength(4);
     expect(request.assets[1]).toEqual({
       type: 'enemy',

@@ -6,7 +6,7 @@
 - 新增提示词请求、候选、素材提示词等 Pydantic 数据模型。
 - 新增标签提取、模型提示词优化、提示词评分、规则降级 Provider、OpenAI LLM Provider。
 - 新增 `GET /api/config/llm` 与 `PUT /api/config/llm`，支持运行时配置 LLM Provider、Base URL、文本模型和 API Key。
-- 前端生成页新增普通/专业模式、GPT Image/NovelAI 目标模型选择、编译和重新生成按钮。
+- 前端生成页新增普通/专业模式、GPT Image 目标模型选择、编译和重新生成按钮。
 - 前端新增 LLM 配置页，用户可在页面内配置 OpenAI-compatible Base URL、OpenAI Key、模型名或切换规则降级。
 - 前端新增候选提示词展示区，支持选择候选方案、查看评分、标签、每个素材的 finalPrompt 和 negativePrompt。
 - 修复前端现有中文文案编码损坏，保证页面可读、可构建。
@@ -20,7 +20,6 @@
 - 专业模式返回 3 套整包候选，阈值 80 分，输出更完整，并对风格探索和展示型细节做更严格取舍。
 - 专业模式方向固定为 `production_safe`、`style_exploration`、`high_detail`。
 - GPT Image 输出自然语言型英文提示词。
-- NovelAI 输出 tag-oriented 提示词，并单独返回 negative prompt。
 - 无 OpenAI Key、请求失败或解析失败时，自动使用 `rule_fallback`，保证演示不中断。
 - 用户可以在前端 LLM 配置页写入 Base URL、模型名和 API Key，配置只保存在当前后端进程内，不提交到仓库。
 
@@ -30,7 +29,6 @@
 - `tag_extractor.py` 从项目名、游戏类型、风格、主题、描述和素材描述中提取结构化标签，并补充中文关键词对应的英文生图标签。
 - `model_optimizers.py` 按目标模型生成两类提示词 profile：
   - `gpt_image`：自然语言结构，包含 subject、style、composition、game usability、technical requirements 和 Avoid 约束。
-  - `novelai`：逗号分隔标签，negative prompt 独立输出。
 - `prompt_scorer.py` 按 specificity、asset alignment、model fit、control coverage、negative constraints 和 overcomplexity penalty 给出 0-100 分。
 - 普通模式与专业模式使用不同 profile：普通模式是 `quick_start` 简洁提示词；专业模式才执行三方向探索。高细节方向如果牺牲游戏导入可用性，会被更严格扣分。
 - 评分设计参考文本到图像评估研究中的可区分维度：T2I-CompBench 强调属性绑定、对象关系与复杂组合；GenEval 强调对象存在、数量、位置、颜色等细粒度对齐；Promptist/OPT2I 类工作强调 prompt 优化应提升图文一致性和可控性。因此 PR5 不再只做字段完整性打分，而是对冗余、过度复杂背景和游戏资产可用性进行差异化处理。
@@ -110,7 +108,7 @@ http://127.0.0.1:4173/
 
 - 页面能看到生成任务表单和 Prompt Compiler 区域。
 - 切换普通/专业模式，请求预览中的 `mode` 同步变化。
-- 切换 GPT Image/NovelAI，请求预览中的 `targetModel` 同步变化。
+- 切换 GPT Image，请求预览中的 `targetModel` 同步变化。
 - 切换到 LLM 配置页，可保存 Provider、Base URL、模型名和 API Key。
 - 后端启动时点击 `COMPILE PROMPT` 能显示候选提示词。
 - 点击候选标题会更新选中状态。

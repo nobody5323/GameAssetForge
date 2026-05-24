@@ -19,3 +19,51 @@ class LlmConfigResponse(BaseModel):
     baseUrl: str
     promptModel: str
     hasApiKey: bool
+
+
+# ── Image Generation Config ──
+
+ImageGenProvider = Literal["openai"]
+
+
+class ImageConfigUpdate(BaseModel):
+    provider: ImageGenProvider = "openai"
+    baseUrl: str = "https://api.openai.com/v1"
+    imageModel: str = "dall-e-3"
+    imageSize: str = "1024x1024"
+    imageQuality: str = "standard"
+    apiKey: str | None = None
+    clearApiKey: bool = False
+    proxyUrl: str | None = None
+    clearProxy: bool = False
+
+
+class ImageConfigResponse(BaseModel):
+    provider: ImageGenProvider
+    baseUrl: str
+    imageModel: str
+    imageSize: str
+    imageQuality: str
+    hasApiKey: bool
+    proxyUrl: str | None = None
+
+
+# ── Cloud Upload Config ──
+
+CloudProviderType = Literal["mock", "qiniu"]
+
+
+class CloudConfigUpdate(BaseModel):
+    provider: CloudProviderType = "mock"
+    accessKey: str | None = None
+    secretKey: str | None = None
+    bucket: str | None = None
+    domain: str | None = None
+    clearCredentials: bool = False
+
+
+class CloudConfigResponse(BaseModel):
+    provider: CloudProviderType
+    hasCredentials: bool
+    bucket: str | None = None
+    domain: str | None = None

@@ -11,6 +11,7 @@ import {
   ImageOff,
   Loader2,
   Package,
+  Paintbrush,
   Plus,
   Play,
   RefreshCw,
@@ -32,6 +33,17 @@ import {
 } from './assetGeneration.js';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
+  applyImageConfigResponse,
+  buildImageConfigPayload,
+  defaultImageConfigForm,
+  fetchImageConfig,
+  imageGenProviders,
+  imageGenQualities,
+  imageGenSizes,
+  openaiImageModels,
+  saveImageConfig,
+} from './imageConfig.js';
+import {
   applyLlmConfigResponse,
   buildLlmConfigPayload,
   defaultLlmConfigForm,
@@ -39,6 +51,14 @@ import {
   providerOptions,
   saveLlmConfig,
 } from './llmConfig.js';
+import {
+  applyCloudConfigResponse,
+  buildCloudConfigPayload,
+  cloudProviders,
+  defaultCloudConfigForm,
+  fetchCloudConfig,
+  saveCloudConfig,
+} from './cloudConfig.js';
 import {
   buildPromptCompileRequest,
   compilePrompt,
@@ -50,14 +70,30 @@ import {
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
   { id: 'config', label: 'LLM 配置', icon: Bot },
+  { id: 'imageConfig', label: 'Image API 配置', icon: Paintbrush },
+  { id: 'cloudConfig', label: '云存储配置', icon: Cloud },
   { id: 'library', label: '素材库', icon: Image },
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
 ];
 
 const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
-const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
-const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
+const gameTypeLabels = {
+  '': '无',
+  platformer: '横版闯关',
+  rpg: '角色扮演',
+  roguelike: 'Roguelike',
+  metroidvania: '银河城',
+};
+const styleLabels = {
+  '': '无',
+  pixel_art: '像素风',
+  cartoon: '卡通',
+  dark_fantasy: '黑暗奇幻',
+  cyberpunk: '赛博朋克',
+};
+const defaultGameType = 'platformer';
+const defaultStyle = 'pixel_art';
 const directionLabels = {
   quick_start: '快速起步',
   production_safe: '稳定生产',
@@ -93,6 +129,12 @@ function App() {
   const [llmConfigForm, setLlmConfigForm] = useState(defaultLlmConfigForm);
   const [llmConfigStatus, setLlmConfigStatus] = useState('尚未读取后端配置');
   const [llmConfigLoading, setLlmConfigLoading] = useState(false);
+  const [imageConfigForm, setImageConfigForm] = useState(defaultImageConfigForm);
+  const [imageConfigStatus, setImageConfigStatus] = useState('尚未读取后端配置');
+  const [imageConfigLoading, setImageConfigLoading] = useState(false);
+  const [cloudConfigForm, setCloudConfigForm] = useState(defaultCloudConfigForm);
+  const [cloudConfigStatus, setCloudConfigStatus] = useState('尚未读取后端配置');
+  const [cloudConfigLoading, setCloudConfigLoading] = useState(false);
   const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
@@ -151,6 +193,26 @@ function App() {
             setStatus={setLlmConfigStatus}
             loading={llmConfigLoading}
             setLoading={setLlmConfigLoading}
+          />
+        )}
+        {activeView === 'imageConfig' && (
+          <ImageConfigPage
+            form={imageConfigForm}
+            setForm={setImageConfigForm}
+            status={imageConfigStatus}
+            setStatus={setImageConfigStatus}
+            loading={imageConfigLoading}
+            setLoading={setImageConfigLoading}
+          />
+        )}
+        {activeView === 'cloudConfig' && (
+          <CloudConfigPage
+            form={cloudConfigForm}
+            setForm={setCloudConfigForm}
+            status={cloudConfigStatus}
+            setStatus={setCloudConfigStatus}
+            loading={cloudConfigLoading}
+            setLoading={setCloudConfigLoading}
           />
         )}
         {activeView === 'library' && <LibraryPage />}
@@ -288,9 +350,9 @@ function GeneratePage({
               value={form.gameType}
               onChange={(event) => updateField('gameType', event.target.value)}
             >
-              {gameTypes.map((gameType) => (
-                <option key={gameType} value={gameType}>
-                  {gameType}
+              {Object.keys(gameTypeLabels).map((key) => (
+                <option key={key} value={key}>
+                  {gameTypeLabels[key]}
                 </option>
               ))}
             </select>
@@ -298,9 +360,9 @@ function GeneratePage({
           <label>
             视觉风格
             <select value={form.style} onChange={(event) => updateField('style', event.target.value)}>
-              {styles.map((style) => (
-                <option key={style} value={style}>
-                  {style}
+              {Object.keys(styleLabels).map((key) => (
+                <option key={key} value={key}>
+                  {styleLabels[key]}
                 </option>
               ))}
             </select>
@@ -465,6 +527,8 @@ function GeneratePage({
 }
 
 function GeneratedAssetsPanel({ state }) {
+  const [lightbox, setLightbox] = useState(null);
+
   return (
     <section className="panel generated-results">
       <div className="section-heading">
@@ -479,7 +543,10 @@ function GeneratedAssetsPanel({ state }) {
         <div className="generated-grid">
           {state.response.assets.map((asset) => (
             <article className="generated-card" key={asset.id}>
-              <div className="generated-thumb">
+              <div
+                className="generated-thumb"
+                onClick={() => setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider, prompt: asset.finalPrompt })}
+              >
                 <img src={buildAssetPreviewUrl(asset.localPath)} alt={`${asset.assetName} preview`} />
               </div>
               <div className="generated-card-head">
@@ -494,6 +561,19 @@ function GeneratedAssetsPanel({ state }) {
               <pre>{asset.finalPrompt}</pre>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -703,11 +783,379 @@ function ConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
   );
 }
 
+function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchImageConfig();
+      setForm((current) => ({ ...current, ...applyImageConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '后端已配置 API Key/Token' : '后端暂无 API Key/Token');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveImageConfig(buildImageConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyImageConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '配置已保存，真实生图已就绪' : '配置已保存，将使用 Mock 降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      // Auto-switch model when provider changes
+      if (field === 'provider') {
+        next.imageModel = 'gpt-image-2';
+        next.baseUrl = 'https://api.openai.com/v1';
+      }
+      return next;
+    });
+  }
+
+  const isDallE = form.imageModel.startsWith('dall-e');
+  const modelOptions = openaiImageModels;
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>Image API 配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            生图 Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {imageGenProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            API Endpoint
+            <input
+              value={form.baseUrl}
+              onChange={(event) => updateConfig('baseUrl', event.target.value)}
+              placeholder="https://api.openai.com/v1"
+            />
+          </label>
+          <label>
+            图片模型
+            <select
+              value={form.imageModel}
+              onChange={(event) => updateConfig('imageModel', event.target.value)}
+            >
+              {modelOptions.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            输出尺寸
+            <select
+              value={form.imageSize}
+              onChange={(event) => updateConfig('imageSize', event.target.value)}
+            >
+              {imageGenSizes.map((size) => (
+                <option key={size.id} value={size.id}>
+                  {size.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isDallE && (
+            <label>
+              画质
+              <select
+                value={form.imageQuality}
+                onChange={(event) => updateConfig('imageQuality', event.target.value)}
+              >
+                {imageGenQualities.map((quality) => (
+                  <option key={quality.id} value={quality.id}>
+                    {quality.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <label>
+          OpenAI API Key
+          <input
+            type="password"
+            value={form.apiKey}
+            onChange={(event) => updateConfig('apiKey', event.target.value)}
+            placeholder={
+              form.hasApiKey
+                ? '后端已有 Key，留空表示不修改'
+                : '输入 sk-...'
+            }
+          />
+        </label>
+
+        <label className="inline-checkbox">
+          <input
+            type="checkbox"
+            checked={form.clearApiKey}
+            onChange={(event) => updateConfig('clearApiKey', event.target.checked)}
+          />
+          清空当前 API Key / Token
+        </label>
+
+        <label>
+          HTTP 代理（可选）
+          <input
+            value={form.proxyUrl}
+            onChange={(event) => updateConfig('proxyUrl', event.target.value)}
+            placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+          />
+        </label>
+        {form.proxyUrl && (
+          <label className="inline-checkbox">
+            <input
+              type="checkbox"
+              checked={form.clearProxy}
+              onChange={(event) => updateConfig('clearProxy', event.target.checked)}
+            />
+            清空代理设置
+          </label>
+        )}
+
+        <div className="image-config-hint">
+          <h4>
+            <Paintbrush size={12} />
+            OpenAI 图像生成使用说明
+          </h4>
+          <ul>
+            <li>需要 <code>sk-...</code> 格式的 OpenAI API Key，需开通图像生成使用权限</li>
+            <li>GPT Image 2 是最新模型，DALL-E 3/2 为旧版</li>
+            <li>GPT Image 2 支持 1024×1024、1024×1536、1536×1024 等多种尺寸</li>
+            <li>无 Key 时自动降级为 Mock Provider</li>
+          </ul>
+        </div>
+
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>OpenAI</span>
+          </div>
+          <div>
+            <strong>Model</strong>
+            <span>{form.imageModel}</span>
+          </div>
+          <div>
+            <strong>Size</strong>
+            <span>{form.imageSize}</span>
+          </div>
+          <div>
+            <strong>Key/Token</strong>
+            <span>{form.hasApiKey ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Paintbrush size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function CloudConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchCloudConfig();
+      setForm((current) => ({ ...current, ...applyCloudConfigResponse(response) }));
+      setStatus(response.hasCredentials ? '后端已配置云存储凭证' : '后端暂无云存储凭证，使用 Mock');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveCloudConfig(buildCloudConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyCloudConfigResponse(response) }));
+      setStatus(response.hasCredentials ? '配置已保存，云上传已就绪' : '配置已保存，将使用 Mock 降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  const isQiniu = form.provider === 'qiniu';
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>云存储配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            云存储 Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {cloudProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {isQiniu && (
+          <>
+            <label>
+              Access Key
+              <input
+                value={form.accessKey}
+                onChange={(event) => updateConfig('accessKey', event.target.value)}
+                placeholder={form.hasCredentials ? '后端已有 Key，留空表示不修改' : '输入七牛云 Access Key'}
+              />
+            </label>
+            <label>
+              Secret Key
+              <input
+                type="password"
+                value={form.secretKey}
+                onChange={(event) => updateConfig('secretKey', event.target.value)}
+                placeholder={form.hasCredentials ? '后端已有 Key，留空表示不修改' : '输入七牛云 Secret Key'}
+              />
+            </label>
+            <label>
+              Bucket 名称
+              <input
+                value={form.bucket}
+                onChange={(event) => updateConfig('bucket', event.target.value)}
+                placeholder="例如：my-game-assets"
+              />
+            </label>
+            <label>
+              CDN 加速域名（可选）
+              <input
+                value={form.domain}
+                onChange={(event) => updateConfig('domain', event.target.value)}
+                placeholder="例如：https://cdn.example.com"
+              />
+            </label>
+
+            {form.hasCredentials && (
+              <label className="inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.clearCredentials}
+                  onChange={(event) => updateConfig('clearCredentials', event.target.checked)}
+                />
+                清空当前凭证
+              </label>
+            )}
+          </>
+        )}
+
+        {isQiniu && (
+          <div className="image-config-hint">
+            <h4>
+              <Cloud size={12} />
+              七牛云 Kodo 使用说明
+            </h4>
+            <ul>
+              <li>需要注册七牛云账号并开通对象存储 Kodo 服务</li>
+              <li>在七牛云控制台获取 <code>Access Key</code> 和 <code>Secret Key</code></li>
+              <li>CDN 域名可选，不配置则使用七牛云 30 天测试域名自动生成</li>
+              <li>上传后素材 public URL 将持久化到素材记录中</li>
+            </ul>
+          </div>
+        )}
+
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>{form.provider === 'qiniu' ? '七牛云 Kodo' : 'Mock 模拟'}</span>
+          </div>
+          {isQiniu && (
+            <>
+              <div>
+                <strong>Bucket</strong>
+                <span>{form.bucket || '未设置'}</span>
+              </div>
+              <div>
+                <strong>域名</strong>
+                <span>{form.domain || '自动生成测试域名'}</span>
+              </div>
+            </>
+          )}
+          <div>
+            <strong>凭证</strong>
+            <span>{form.hasCredentials ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Cloud size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 function LibraryPage() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
+  const [lightbox, setLightbox] = useState(null);
 
   async function loadAssets(selectedCategory) {
     setLoading(true);
@@ -804,7 +1252,10 @@ function LibraryPage() {
         <div className="asset-grid">
           {assets.map((asset) => (
             <article className="asset-card" key={asset.id}>
-              <div className="asset-thumb">
+              <div
+                className="asset-thumb"
+                onClick={() => asset.localPath && setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider })}
+              >
                 {asset.localPath ? (
                   <img
                     src={buildAssetPreviewUrl(asset.localPath)}
@@ -825,6 +1276,19 @@ function LibraryPage() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>

@@ -42,8 +42,8 @@ class MockImageProvider(ImageProvider):
                 "promptHash": _short_hash(request.finalPrompt),
                 "promptVersion": request.promptVersion,
                 "mock": True,
-                "width": 64,
-                "height": 64,
+                "width": 512,
+                "height": 512,
             },
         )
 
@@ -52,7 +52,7 @@ class MockImageProvider(ImageProvider):
         path = MOCK_ASSET_DIR / f"{normalized_type}.png"
         if not path.exists():
             color = ASSET_COLORS.get(asset_type, _color_from_text(asset_type))
-            write_solid_png(path, width=64, height=64, color=color)
+            write_solid_png(path, width=512, height=512, color=color)
         return path
 
     def _destination_path(self, request: ImageGenerationRequest) -> Path:

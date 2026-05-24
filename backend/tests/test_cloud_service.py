@@ -7,12 +7,19 @@ from app.models.asset_models import (
     AssetGenerateItem,
     AssetGenerateRequest,
 )
+from app.providers.mock_cloud_provider import MockCloudProvider
 from app.services.asset_generation_service import AssetGenerationService
 from app.services.cloud_service import CloudService
 
 
 app = create_app()
 client = TestClient(app)
+
+# Reset cloud config to mock so these tests run with MockCloudProvider
+client.put(
+    "/api/config/cloud",
+    json={"provider": "mock", "clearCredentials": True},
+)
 
 
 def _generate_test_assets() -> str:

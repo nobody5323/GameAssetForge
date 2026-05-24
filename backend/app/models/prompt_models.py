@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 PromptMode = Literal["normal", "professional"]
-TargetModel = Literal["gpt_image", "novelai", "mock_seed"]
+TargetModel = Literal["gpt_image", "mock_seed"]
 PromptDirection = Literal["quick_start", "production_safe", "style_exploration", "high_detail"]
 
 

@@ -105,17 +105,6 @@ class PromptScorer:
         prompt: PromptAssetResult,
         text: str,
     ) -> int:
-        if target_model == "novelai":
-            comma_count = prompt.finalPrompt.count(",")
-            score = 6
-            if comma_count >= 12:
-                score += 7
-            if prompt.negativePrompt:
-                score += 4
-            if "game asset" in text or "2d sprite" in text:
-                score += 3
-            return min(score, 20)
-
         if target_model == "mock_seed":
             score = 8
             if "mock seed prompt profile" in text and "mock seed provider" in text:
