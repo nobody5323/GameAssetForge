@@ -24,10 +24,10 @@ export const openaiImageModels = [
 ];
 
 export const novelaiImageModels = [
+  { id: 'nai-diffusion-4-5-full', label: 'NAI Diffusion V4.5 Full' },
+  { id: 'nai-diffusion-4-5-curated', label: 'NAI Diffusion V4.5 Curated' },
   { id: 'nai-diffusion-4-full', label: 'NAI Diffusion V4 Full' },
   { id: 'nai-diffusion-4-curated-preview', label: 'NAI Diffusion V4 Curated' },
-  { id: 'nai-diffusion-4.5-full', label: 'NAI Diffusion V4.5 Full' },
-  { id: 'nai-diffusion-4.5-curated-preview', label: 'NAI Diffusion V4.5 Curated' },
   { id: 'nai-diffusion-3', label: 'NAI Diffusion 3' },
   { id: 'nai-diffusion-furry-3', label: 'NAI Diffusion Furry 3' },
 ];
