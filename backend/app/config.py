@@ -164,7 +164,7 @@ class ImageRuntimeConfig:
 
     def get_client_kwargs(self) -> dict:
         """Build httpx.Client keyword arguments including proxy."""
-        kwargs = {"timeout": 120, "verify": True}
+        kwargs = {"timeout": 300, "verify": True}
         if self.proxy_url:
             _validate_ascii_url(self.proxy_url, "HTTP 代理地址")
             kwargs["proxy"] = self.proxy_url
