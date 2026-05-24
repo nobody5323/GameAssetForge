@@ -187,7 +187,6 @@ GameAssetForge/
 - PR 计划：[docs/PR_PLAN.md](docs/PR_PLAN.md)
 - Demo 脚本：[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 - 工程设计：[docs/PROJECT_ENGINEERING.md](docs/PROJECT_ENGINEERING.md)
-- PR1 描述：[docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md](docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md)
 
 ## 验收清单
 
