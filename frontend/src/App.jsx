@@ -398,7 +398,7 @@ function GeneratePage({
 
         <div className="asset-form-list">
           {form.assets.map((asset, index) => (
-            <div className="asset-form-row" key={`${asset.type}-${asset.name}-${index}`}>
+            <div className="asset-form-row" key={`asset-${index}`}>
               <label className="checkbox-label">
                 启用
                 <input
