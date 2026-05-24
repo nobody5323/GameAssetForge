@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routes.asset_routes import router as asset_router
 from app.routes.config_routes import router as config_router
+from app.routes.export_routes import router as export_router
 from app.routes.health_routes import router as health_router
 from app.routes.prompt_routes import router as prompt_router
 from app.routes.quality_routes import router as quality_router
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(config_router, prefix="/api")
     app.include_router(asset_router, prefix="/api")
     app.include_router(quality_router, prefix="/api")
+    app.include_router(export_router, prefix="/api")
     app.mount("/runtime", StaticFiles(directory=runtime_dir), name="runtime")
     return app
 

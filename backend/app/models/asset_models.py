@@ -41,6 +41,7 @@ class AssetGenerateRequest(BaseModel):
 class AssetRecord(BaseModel):
     id: str
     generationId: str
+    projectName: str = ""
     assetName: str
     assetType: str
     style: str
