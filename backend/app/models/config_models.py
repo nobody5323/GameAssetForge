@@ -46,3 +46,24 @@ class ImageConfigResponse(BaseModel):
     imageQuality: str
     hasApiKey: bool
     proxyUrl: str | None = None
+
+
+# ── Cloud Upload Config ──
+
+CloudProviderType = Literal["mock", "qiniu"]
+
+
+class CloudConfigUpdate(BaseModel):
+    provider: CloudProviderType = "mock"
+    accessKey: str | None = None
+    secretKey: str | None = None
+    bucket: str | None = None
+    domain: str | None = None
+    clearCredentials: bool = False
+
+
+class CloudConfigResponse(BaseModel):
+    provider: CloudProviderType
+    hasCredentials: bool
+    bucket: str | None = None
+    domain: str | None = None

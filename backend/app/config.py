@@ -4,6 +4,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.models.config_models import (
+    CloudConfigResponse,
+    CloudConfigUpdate,
+    CloudProviderType,
     ImageConfigResponse,
     ImageConfigUpdate,
     ImageGenProvider,
@@ -15,6 +18,7 @@ from app.models.config_models import (
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 LOCAL_CONFIG_PATH = BACKEND_ROOT / "runtime" / "llm-config.local.json"
 IMAGE_CONFIG_PATH = BACKEND_ROOT / "runtime" / "image-config.local.json"
+CLOUD_CONFIG_PATH = BACKEND_ROOT / "runtime" / "cloud-config.local.json"
 
 
 @dataclass
@@ -183,6 +187,88 @@ def normalize_base_url(value: str) -> str:
     return base_url or "https://api.openai.com/v1"
 
 
+# ── Cloud Upload Runtime Config ──
+
+
+@dataclass
+class CloudRuntimeConfig:
+    """Cloud upload configuration for Mock / Qiniu providers."""
+
+    provider: CloudProviderType = "mock"
+    access_key: str = ""
+    secret_key: str = ""
+    bucket: str = ""
+    domain: str = ""
+
+    @classmethod
+    def load(cls) -> "CloudRuntimeConfig":
+        config = cls(
+            provider=os.getenv("CLOUD_PROVIDER", "mock"),
+            access_key=os.getenv("QINIU_ACCESS_KEY", ""),
+            secret_key=os.getenv("QINIU_SECRET_KEY", ""),
+            bucket=os.getenv("QINIU_BUCKET", ""),
+            domain=os.getenv("QINIU_DOMAIN", ""),
+        )
+        config.load_local()
+        return config
+
+    def update(self, payload: CloudConfigUpdate) -> None:
+        self.provider = payload.provider
+        if payload.clearCredentials:
+            self.access_key = ""
+            self.secret_key = ""
+            self.bucket = ""
+            self.domain = ""
+        else:
+            if payload.accessKey is not None and payload.accessKey.strip():
+                self.access_key = payload.accessKey.strip()
+            if payload.secretKey is not None and payload.secretKey.strip():
+                self.secret_key = payload.secretKey.strip()
+            if payload.bucket is not None:
+                self.bucket = payload.bucket.strip()
+            if payload.domain is not None:
+                self.domain = payload.domain.strip()
+        self.save_local()
+
+    def load_local(self) -> None:
+        if not CLOUD_CONFIG_PATH.exists():
+            return
+        data = json.loads(CLOUD_CONFIG_PATH.read_text(encoding="utf-8"))
+        self.provider = data.get("provider", self.provider)
+        self.access_key = data.get("accessKey", self.access_key)
+        self.secret_key = data.get("secretKey", self.secret_key)
+        self.bucket = data.get("bucket", self.bucket)
+        self.domain = data.get("domain", self.domain)
+
+    def save_local(self) -> None:
+        CLOUD_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        CLOUD_CONFIG_PATH.write_text(
+            json.dumps(
+                {
+                    "provider": self.provider,
+                    "accessKey": self.access_key,
+                    "secretKey": self.secret_key,
+                    "bucket": self.bucket,
+                    "domain": self.domain,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    def is_qiniu_available(self) -> bool:
+        return bool(self.access_key and self.secret_key and self.bucket)
+
+    def public_response(self) -> CloudConfigResponse:
+        return CloudConfigResponse(
+            provider=self.provider,
+            hasCredentials=self.is_qiniu_available(),
+            bucket=self.bucket or None,
+            domain=self.domain or None,
+        )
+
+
 def _validate_ascii_url(value: str, label: str) -> None:
     """Raise a clear error if `value` contains non-ASCII characters."""
     try:
@@ -196,3 +282,4 @@ def _validate_ascii_url(value: str, label: str) -> None:
 
 llm_runtime_config = LlmRuntimeConfig.load()
 image_runtime_config = ImageRuntimeConfig.load()
+cloud_runtime_config = CloudRuntimeConfig.load()

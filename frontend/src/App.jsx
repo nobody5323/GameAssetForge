@@ -52,6 +52,14 @@ import {
   saveLlmConfig,
 } from './llmConfig.js';
 import {
+  applyCloudConfigResponse,
+  buildCloudConfigPayload,
+  cloudProviders,
+  defaultCloudConfigForm,
+  fetchCloudConfig,
+  saveCloudConfig,
+} from './cloudConfig.js';
+import {
   buildPromptCompileRequest,
   compilePrompt,
   pickInitialCandidate,
@@ -63,6 +71,7 @@ const views = [
   { id: 'generate', label: '素材生成', icon: Play },
   { id: 'config', label: 'LLM 配置', icon: Bot },
   { id: 'imageConfig', label: 'Image API 配置', icon: Paintbrush },
+  { id: 'cloudConfig', label: '云存储配置', icon: Cloud },
   { id: 'library', label: '素材库', icon: Image },
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
@@ -109,6 +118,9 @@ function App() {
   const [imageConfigForm, setImageConfigForm] = useState(defaultImageConfigForm);
   const [imageConfigStatus, setImageConfigStatus] = useState('尚未读取后端配置');
   const [imageConfigLoading, setImageConfigLoading] = useState(false);
+  const [cloudConfigForm, setCloudConfigForm] = useState(defaultCloudConfigForm);
+  const [cloudConfigStatus, setCloudConfigStatus] = useState('尚未读取后端配置');
+  const [cloudConfigLoading, setCloudConfigLoading] = useState(false);
   const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
@@ -177,6 +189,16 @@ function App() {
             setStatus={setImageConfigStatus}
             loading={imageConfigLoading}
             setLoading={setImageConfigLoading}
+          />
+        )}
+        {activeView === 'cloudConfig' && (
+          <CloudConfigPage
+            form={cloudConfigForm}
+            setForm={setCloudConfigForm}
+            status={cloudConfigStatus}
+            setStatus={setCloudConfigStatus}
+            loading={cloudConfigLoading}
+            setLoading={setCloudConfigLoading}
           />
         )}
         {activeView === 'library' && <LibraryPage />}
@@ -941,6 +963,167 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
         <div className="button-row">
           <button className="primary-button" type="submit" disabled={loading}>
             <Paintbrush size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function CloudConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchCloudConfig();
+      setForm((current) => ({ ...current, ...applyCloudConfigResponse(response) }));
+      setStatus(response.hasCredentials ? '后端已配置云存储凭证' : '后端暂无云存储凭证，使用 Mock');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveCloudConfig(buildCloudConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyCloudConfigResponse(response) }));
+      setStatus(response.hasCredentials ? '配置已保存，云上传已就绪' : '配置已保存，将使用 Mock 降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  const isQiniu = form.provider === 'qiniu';
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>云存储配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            云存储 Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {cloudProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {isQiniu && (
+          <>
+            <label>
+              Access Key
+              <input
+                value={form.accessKey}
+                onChange={(event) => updateConfig('accessKey', event.target.value)}
+                placeholder={form.hasCredentials ? '后端已有 Key，留空表示不修改' : '输入七牛云 Access Key'}
+              />
+            </label>
+            <label>
+              Secret Key
+              <input
+                type="password"
+                value={form.secretKey}
+                onChange={(event) => updateConfig('secretKey', event.target.value)}
+                placeholder={form.hasCredentials ? '后端已有 Key，留空表示不修改' : '输入七牛云 Secret Key'}
+              />
+            </label>
+            <label>
+              Bucket 名称
+              <input
+                value={form.bucket}
+                onChange={(event) => updateConfig('bucket', event.target.value)}
+                placeholder="例如：my-game-assets"
+              />
+            </label>
+            <label>
+              CDN 加速域名（可选）
+              <input
+                value={form.domain}
+                onChange={(event) => updateConfig('domain', event.target.value)}
+                placeholder="例如：https://cdn.example.com"
+              />
+            </label>
+
+            {form.hasCredentials && (
+              <label className="inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.clearCredentials}
+                  onChange={(event) => updateConfig('clearCredentials', event.target.checked)}
+                />
+                清空当前凭证
+              </label>
+            )}
+          </>
+        )}
+
+        {isQiniu && (
+          <div className="image-config-hint">
+            <h4>
+              <Cloud size={12} />
+              七牛云 Kodo 使用说明
+            </h4>
+            <ul>
+              <li>需要注册七牛云账号并开通对象存储 Kodo 服务</li>
+              <li>在七牛云控制台获取 <code>Access Key</code> 和 <code>Secret Key</code></li>
+              <li>CDN 域名可选，不配置则使用七牛云 30 天测试域名自动生成</li>
+              <li>上传后素材 public URL 将持久化到素材记录中</li>
+            </ul>
+          </div>
+        )}
+
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>{form.provider === 'qiniu' ? '七牛云 Kodo' : 'Mock 模拟'}</span>
+          </div>
+          {isQiniu && (
+            <>
+              <div>
+                <strong>Bucket</strong>
+                <span>{form.bucket || '未设置'}</span>
+              </div>
+              <div>
+                <strong>域名</strong>
+                <span>{form.domain || '自动生成测试域名'}</span>
+              </div>
+            </>
+          )}
+          <div>
+            <strong>凭证</strong>
+            <span>{form.hasCredentials ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Cloud size={14} />
             SAVE CONFIG
           </button>
           <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
