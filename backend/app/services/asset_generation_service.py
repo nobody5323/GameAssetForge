@@ -60,6 +60,7 @@ class AssetGenerationService:
                 AssetRecord(
                     id=f"asset_{uuid4().hex[:12]}",
                     generationId=generation_id,
+                    projectName=request.projectName,
                     assetName=prompt_asset.assetName,
                     assetType=prompt_asset.assetType,
                     style=request.style,

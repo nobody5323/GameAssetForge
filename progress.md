@@ -316,20 +316,15 @@
 | Bad naming detection | asset name "Bad Name!" | naming check fails | naming score < 10, not passed | Pass |
 | Missing file detection | Delete PNG then inspect | format check fails | score=0, "不存在" in message | Pass |
 
-### Phase 21: PR 10 Quality Report Page
+### Phase 10: PR 10 Quality Report Page
 - **Status:** complete
 - Actions taken:
   - Created `feature/pr-10-quality-report-page` from latest `origin/main`.
-  - Added `fetchQualityReport(generationId)` helper in `assetGeneration.js`.
-  - Rewrote `QualityPage` from static placeholder to full dynamic report:
-    - Auto-loads existing generation IDs from asset library for dropdown selection.
-    - Score ring showing overallScore with color coding (green ≥80, yellow 60-79, red <60).
-    - Stats cards: total assets, pass count (≥60), fail count (<60).
-    - Per-asset cards with check-by-check breakdown: pass/fail icon, description, deduction amount.
-    - Loading spinner, error state, empty generation state.
-  - Added quality report CSS: `.quality-panel`, `.quality-score-ring`, `.quality-stats`, `.quality-asset-card`, `.quality-check-row` with pass/fail color coding.
-  - Updated frontend tests: 15 tests pass (added `fetchQualityReport` export test).
-  - No backend changes needed — PR10 is a pure frontend PR consuming PR9's API.
+  - Added `fetchQualityReport()` frontend API helper in `assetGeneration.js`.
+  - Rewrote QualityPage from static placeholder to dynamic report page.
+  - Added quality report CSS (score ring, stats, check rows).
+  - Added frontend test for fetchQualityReport export.
+  - Added PR10 description document.
 - Files created/modified:
   - `frontend/src/assetGeneration.js`
   - `frontend/src/assetGeneration.test.js`
@@ -342,15 +337,53 @@
 ## PR10 Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-| Backend full suite | `python -m pytest` in `backend` | All 34 tests pass | 34 passed | Pass |
 | Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 15 tests pass | 4 files, 15 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+
+### Phase 11: PR 11 Manifest & Zip Export
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-11-manifest-and-zip-export` from latest `origin/main`.
+  - Added `Manifest`, `ManifestAsset`, `ExportResponse` Pydantic models.
+  - Implemented `ExportService` with manifest generation, quality score integration, zip packaging, and disk persistence.
+  - Added `POST /api/exports/{generation_id}` (streaming zip download) and `GET /api/exports` (list generation IDs).
+  - Added `projectName` to AssetRecord and persisted in AssetGenerationService.
+  - Registered export router in `main.py`.
+  - Added 8 backend tests covering zip validity, manifest content, API endpoints, 404, and edge cases.
+  - Added `fetchExportableGenerations()` and `exportGeneration()` frontend API helpers.
+  - Rewrote ExportPage from static placeholder to dynamic UI.
+  - Added export page CSS styles.
+  - Added PR11 description document.
+  - Committed in 3 commits: feat (backend) → feat (frontend) → docs.
+- Files created/modified:
+  - `backend/app/models/export_models.py`
+  - `backend/app/services/export_service.py`
+  - `backend/app/routes/export_routes.py`
+  - `backend/app/models/asset_models.py`
+  - `backend/app/services/asset_generation_service.py`
+  - `backend/app/main.py`
+  - `backend/tests/test_export_service.py`
+  - `frontend/src/assetGeneration.js`
+  - `frontend/src/assetGeneration.test.js`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `docs/pr-descriptions/PR_11_MANIFEST_AND_ZIP_EXPORT.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR11 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend full suite | `python -m pytest` in `backend` | All 42 tests pass | 42 passed | Pass |
+| Backend export tests | `python -m pytest tests/test_export_service.py -v` | 8 export tests pass | 8 passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 18 tests pass | 4 files, 18 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | PR 4 verification |
-| Where am I going? | Push PR4 branch, then wait before PR5 |
+| Where am I? | PR 11 verification |
+| Where am I going? | Commit PR11 docs, then PR12 cloud simulation + final docs |
 | What's the goal? | Runnable GameAsset Forge MVP matching the PR plan |
 | What have I learned? | See findings.md |
 | What have I done? | Created planning files and began implementation |

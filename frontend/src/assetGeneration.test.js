@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAssetPreviewUrl, fetchAssets, fetchQualityReport, summarizeGeneratedAssets } from './assetGeneration.js';
+import {
+  buildAssetPreviewUrl,
+  exportGeneration,
+  fetchAssets,
+  fetchExportableGenerations,
+  fetchQualityReport,
+  summarizeGeneratedAssets,
+} from './assetGeneration.js';
 
 describe('summarizeGeneratedAssets', () => {
   it('summarizes a generation response for the UI status line', () => {
@@ -29,6 +36,18 @@ describe('buildAssetPreviewUrl', () => {
 describe('fetchAssets', () => {
   it('builds the correct URL without category filter', () => {
     expect(typeof fetchAssets).toBe('function');
+  });
+});
+
+describe('fetchExportableGenerations', () => {
+  it('is a function exported from the module', () => {
+    expect(typeof fetchExportableGenerations).toBe('function');
+  });
+});
+
+describe('exportGeneration', () => {
+  it('is a function exported from the module', () => {
+    expect(typeof exportGeneration).toBe('function');
   });
 });
 
