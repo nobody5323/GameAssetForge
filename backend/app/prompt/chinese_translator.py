@@ -3,9 +3,15 @@ Chinese-to-English game asset tag translator.
 
 Translates Chinese game dev terms into English image generation tags
 so that NovelAI / DALL-E receive clean, usable prompts.
+
+Falls back to Danbooru tag API for terms not in the local dictionary.
 """
 
 import re
+import time
+from typing import Optional
+
+import httpx
 
 # ---------------------------------------------------------------------------
 # Comprehensive Chinese → English game-dev dictionary (longest-key-first order)
@@ -312,6 +318,68 @@ _MAX_KEY_LEN = max((len(k) for k in CN_TO_EN_GAME_DICT), default=0)
 _CHINESE_CHAR_PATTERN = re.compile(r"[一-鿿㐀-䶿⼀-⿟　-〿＀-￯]")
 
 
+# ---------------------------------------------------------------------------
+# Danbooru tag API fallback
+# ---------------------------------------------------------------------------
+
+# In-memory cache: {chinese_term: english_tag} — populated by Danbooru lookups
+_danbooru_cache: dict[str, str] = {}
+_danbooru_misses: set[str] = set()  # terms confirmed not found on Danbooru
+_danbooru_client: httpx.Client | None = None
+
+
+def _get_danbooru_client() -> httpx.Client:
+    """Lazy-init a shared httpx client for Danbooru API calls."""
+    global _danbooru_client
+    if _danbooru_client is None:
+        _danbooru_client = httpx.Client(timeout=10, headers={
+            "User-Agent": "GameAssetForge/1.0 (tag translator)",
+            "Accept": "application/json",
+        })
+    return _danbooru_client
+
+
+def _lookup_danbooru(term: str) -> str | None:
+    """Look up a Chinese term on Danbooru and return its English tag name.
+
+    Uses the Danbooru autocomplete API which is fast and returns
+    the canonical English tag for a given search term.
+
+    Results are cached in memory for the session lifetime.
+    """
+    if term in _danbooru_cache:
+        return _danbooru_cache[term]
+    if term in _danbooru_misses:
+        return None
+
+    try:
+        client = _get_danbooru_client()
+        resp = client.get(
+            "https://danbooru.donmai.us/autocomplete.json",
+            params={
+                "search[query]": term,
+                "search[type]": "tag_query",
+                "limit": 1,
+            },
+        )
+        resp.raise_for_status()
+        results = resp.json()
+
+        if results and isinstance(results, list) and len(results) > 0:
+            tag_name = results[0].get("value") or results[0].get("label")
+            if tag_name and isinstance(tag_name, str):
+                # Normalize: replace underscores with spaces (NovelAI convention)
+                english = tag_name.strip().replace("_", " ")
+                _danbooru_cache[term] = english
+                return english
+    except Exception:
+        # Network errors, timeouts, rate limits — silently ignore
+        pass
+
+    _danbooru_misses.add(term)
+    return None
+
+
 def _is_chinese_char(ch: str) -> bool:
     """Return True if the character is a CJK character or fullwidth form."""
     return bool(_CHINESE_CHAR_PATTERN.match(ch))
@@ -357,8 +425,21 @@ def translate_chinese_text(text: str | None) -> str:
                 break
 
         if not matched:
-            # Single unknown Chinese character — skip it
-            i += 1
+            # Unknown Chinese character — try Danbooru with lookahead
+            lookahead_end = min(i + 6, n)
+            found_danbooru = False
+            # Try progressively shorter lookahead clusters (up to 6 chars)
+            for end in range(lookahead_end, i + 1, -1):
+                cluster = text[i:end]
+                if len(cluster) >= 2:
+                    danbooru_result = _lookup_danbooru(cluster)
+                    if danbooru_result:
+                        result_parts.append(danbooru_result)
+                        i = end
+                        found_danbooru = True
+                        break
+            if not found_danbooru:
+                i += 1  # skip single unknown char
 
     return " ".join(result_parts).strip()
 
@@ -398,6 +479,20 @@ def extract_chinese_tags(text: str) -> list[str]:
                 break
 
         if not matched:
-            i += 1
+                # Unknown Chinese character — try Danbooru with lookahead
+                lookahead_end = min(i + 6, n)
+                found_danbooru = False
+                for end in range(lookahead_end, i + 1, -1):
+                    cluster = text[i:end]
+                    if len(cluster) >= 2:
+                        danbooru_result = _lookup_danbooru(cluster)
+                        if danbooru_result and danbooru_result not in seen:
+                            tags.append(danbooru_result)
+                            seen.add(danbooru_result)
+                            i = end
+                            found_danbooru = True
+                            break
+                if not found_danbooru:
+                    i += 1  # skip single unknown char
 
     return tags
