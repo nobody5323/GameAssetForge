@@ -78,8 +78,22 @@ const views = [
 ];
 
 const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
-const gameTypes = ['platformer', 'rpg', 'roguelike', 'metroidvania'];
-const styles = ['pixel_art', 'cartoon', 'dark_fantasy', 'cyberpunk'];
+const gameTypeLabels = {
+  '': '无',
+  platformer: '横版闯关',
+  rpg: '角色扮演',
+  roguelike: 'Roguelike',
+  metroidvania: '银河城',
+};
+const styleLabels = {
+  '': '无',
+  pixel_art: '像素风',
+  cartoon: '卡通',
+  dark_fantasy: '黑暗奇幻',
+  cyberpunk: '赛博朋克',
+};
+const defaultGameType = 'platformer';
+const defaultStyle = 'pixel_art';
 const directionLabels = {
   quick_start: '快速起步',
   production_safe: '稳定生产',
@@ -336,9 +350,9 @@ function GeneratePage({
               value={form.gameType}
               onChange={(event) => updateField('gameType', event.target.value)}
             >
-              {gameTypes.map((gameType) => (
-                <option key={gameType} value={gameType}>
-                  {gameType}
+              {Object.keys(gameTypeLabels).map((key) => (
+                <option key={key} value={key}>
+                  {gameTypeLabels[key]}
                 </option>
               ))}
             </select>
@@ -346,9 +360,9 @@ function GeneratePage({
           <label>
             视觉风格
             <select value={form.style} onChange={(event) => updateField('style', event.target.value)}>
-              {styles.map((style) => (
-                <option key={style} value={style}>
-                  {style}
+              {Object.keys(styleLabels).map((key) => (
+                <option key={key} value={key}>
+                  {styleLabels[key]}
                 </option>
               ))}
             </select>
