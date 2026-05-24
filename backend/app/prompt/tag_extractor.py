@@ -1,5 +1,5 @@
 from app.models.prompt_models import PromptCompileRequest
-from app.prompt.chinese_translator import extract_chinese_tags, _is_chinese_char
+from app.prompt.chinese_translator import extract_chinese_tags, translate_chinese_text, _is_chinese_char
 
 
 STYLE_TAGS = {
@@ -51,9 +51,9 @@ def extract_prompt_tags(request: PromptCompileRequest) -> dict[str, list[str]]:
     subject_tags = []
     for asset in request.assets:
         subject_tags.extend(ASSET_TAGS.get(asset.type, [asset.type.replace("_", " ")]))
-        subject_tags.append(asset.name.replace("_", " "))
+        subject_tags.append(translate_chinese_text(asset.name.replace("_", " ")))
 
-    theme_tags = [request.theme]
+    theme_tags = [translate_chinese_text(request.theme)]
     environment_tags = []
     mood_tags = []
 

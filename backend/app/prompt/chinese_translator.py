@@ -273,6 +273,11 @@ CN_TO_EN_GAME_DICT: dict[str, str] = {
     "角色扮演": "rpg",
     "Boss": "boss",
     "boss": "boss",
+    "美少女": "beautiful girl",
+    "少女": "girl",
+    "猫耳": "cat ears",
+    "白发": "white hair",
+    "游戏": "game",
 
     # ── Quality / Technical tags ────────────────────────────────────
     "高品质": "best quality",
