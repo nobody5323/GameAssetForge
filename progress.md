@@ -379,11 +379,52 @@
 | Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 18 tests pass | 4 files, 18 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
+### Phase 12: PR 12 Cloud Simulation & Final Docs
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-12-cloud-and-demo-docs` from latest `origin/main`, merged PR11.
+  - Added CloudProvider abstract interface and MockCloudProvider with `cloud://mock/...` simulated URLs.
+  - Added CloudService to orchestrate upload and update AssetRecord.cloudUrl.
+  - Added `POST /api/cloud/upload/{asset_id}` and `POST /api/cloud/upload-generation/{generation_id}`.
+  - Added `update_asset()` and `find_asset()` to AssetRepository.
+  - Registered cloud router in main.py.
+  - Added 7 backend cloud service tests.
+  - Added `uploadAssetToCloud()` and `uploadGenerationToCloud()` frontend helpers.
+  - Added cloud upload section to ExportPage (button + result display).
+  - Rewrote README.md with full tech stack, API table, Quick Start, project structure, acceptance checklist.
+  - Updated DEMO_SCRIPT.md to 6-segment detailed walkthrough.
+  - Added PR12 description document.
+  - Committed in 4 commits: feat (backend) → feat (frontend) → docs (README) → docs (plans).
+- Files created/modified:
+  - `backend/app/providers/cloud_provider.py`
+  - `backend/app/providers/mock_cloud_provider.py`
+  - `backend/app/services/cloud_service.py`
+  - `backend/app/routes/cloud_routes.py`
+  - `backend/app/repositories/asset_repository.py`
+  - `backend/app/main.py`
+  - `backend/tests/test_cloud_service.py`
+  - `frontend/src/assetGeneration.js`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `README.md`
+  - `docs/DEMO_SCRIPT.md`
+  - `docs/pr-descriptions/PR_12_CLOUD_AND_DEMO_DOCS.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR12 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend full suite | `python -m pytest` in `backend` | All 49 tests pass | 49 passed | Pass |
+| Backend cloud tests | `python -m pytest tests/test_cloud_service.py -v` | 7 cloud tests pass | 7 passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 17 tests pass | 4 files, 17 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | PR 11 verification |
-| Where am I going? | Commit PR11 docs, then PR12 cloud simulation + final docs |
-| What's the goal? | Runnable GameAsset Forge MVP matching the PR plan |
+| Where am I? | PR 12 — MVP Complete |
+| Where am I going? | Push PR12, merge all PRs, deliver MVP |
+| What's the goal? | Runnable GameAsset Forge MVP matching the PR plan — DONE |
 | What have I learned? | See findings.md |
-| What have I done? | Created planning files and began implementation |
+| What have I done? | Completed all 12 PRs for MVP |
