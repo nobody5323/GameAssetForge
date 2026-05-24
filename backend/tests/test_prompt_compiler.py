@@ -68,22 +68,6 @@ def test_professional_mode_returns_three_candidates_with_threshold(monkeypatch):
     assert max(scores) < 100
 
 
-def test_novelai_prompt_uses_tag_oriented_structure(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
-    client = TestClient(app)
-    payload = {**BASE_REQUEST, "targetModel": "novelai"}
-
-    response = client.post("/api/prompts/compile", json=payload)
-
-    assert response.status_code == 200
-    asset = response.json()["candidates"][0]["assets"][0]
-    assert ", " in asset["finalPrompt"]
-    assert "game asset" in asset["finalPrompt"]
-    assert asset["negativePrompt"]
-    assert "low quality" in asset["negativePrompt"]
-
-
 def test_mock_seed_prompt_uses_local_provider_profile(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("PROMPT_PROVIDER", "openai")
@@ -115,7 +99,7 @@ def test_tag_extractor_adds_english_tags_from_chinese_input():
     assert "pixel art" in tags["style"]
     assert "bamboo forest" in tags["theme"]
     assert "cyberpunk" in tags["theme"]
-    assert "enemy sprite" in tags["subject"]
+    assert "monster" in tags["subject"]
 
 
 def test_low_score_prompt_includes_warning():

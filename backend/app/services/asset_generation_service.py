@@ -8,6 +8,8 @@ from app.models.asset_models import (
 )
 from app.models.prompt_models import PromptCompileRequest
 from app.prompt.prompt_compiler import PromptCompiler
+from app.providers.gpt_image_provider import GptImageProvider
+from app.providers.image_provider import ImageProvider
 from app.providers.mock_image_provider import MockImageProvider
 from app.repositories.asset_repository import AssetRepository
 
@@ -17,11 +19,26 @@ PROMPT_VERSION = "prompt-v1"
 class AssetGenerationService:
     def __init__(self):
         self.prompt_compiler = PromptCompiler()
-        self.image_provider = MockImageProvider()
+        self.mock_provider = MockImageProvider()
+        self.gpt_provider = GptImageProvider()
         self.asset_repository = AssetRepository()
+
+    def _select_provider(self, target_model: str) -> ImageProvider:
+        """Select an image provider based on the target model.
+
+        Falls back to MockImageProvider when the requested real provider
+        has no credentials configured.
+        """
+        if target_model == "gpt_image":
+            if self.gpt_provider.is_available():
+                return self.gpt_provider
+            return self.mock_provider
+        return self.mock_provider
 
     def generate(self, request: AssetGenerateRequest) -> AssetGenerateResponse:
         generation_id = f"gen_{uuid4().hex[:12]}"
+        image_provider = self._select_provider(request.targetModel)
+
         prompt_response = self.prompt_compiler.compile(
             PromptCompileRequest(
                 mode=request.promptMode,
@@ -45,7 +62,7 @@ class AssetGenerationService:
         records: list[AssetRecord] = []
 
         for prompt_asset in selected_candidate.assets:
-            generated = self.image_provider.generate(
+            generated = image_provider.generate(
                 ImageGenerationRequest(
                     generationId=generation_id,
                     assetName=prompt_asset.assetName,
@@ -53,6 +70,7 @@ class AssetGenerationService:
                     style=request.style,
                     theme=request.theme,
                     finalPrompt=prompt_asset.finalPrompt,
+                    negativePrompt=prompt_asset.negativePrompt,
                     promptVersion=PROMPT_VERSION,
                 )
             )
@@ -76,7 +94,7 @@ class AssetGenerationService:
         self.asset_repository.save_generation(generation_id, records)
         return AssetGenerateResponse(
             generationId=generation_id,
-            provider=self.image_provider.provider_name,
+            provider=image_provider.provider_name,
             promptProvider=prompt_response.provider,
             fallback=prompt_response.fallback,
             assets=records,

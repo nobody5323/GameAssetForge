@@ -132,7 +132,7 @@
   - Added real OpenAI Responses API provider path with `OPENAI_API_KEY`, `OPENAI_PROMPT_MODEL`, and `PROMPT_PROVIDER=openai`.
   - Preserved automatic rule fallback when key/config/request/parse fails.
   - Fixed Prompt Compiler Chinese defaults and tag extraction keyword mapping.
-  - Reworked frontend generation page to include normal/professional modes, GPT Image/NovelAI target model selection, compile/regenerate controls, candidate display, tags, scores, warnings, and selected candidate state.
+  - Reworked frontend generation page to include normal/professional modes, GPT Image target model selection, compile/regenerate controls, candidate display, tags, scores, warnings, and selected candidate state.
   - Added frontend prompt compiler request helpers and tests.
   - Added runtime LLM config API and frontend LLM config page with Provider, Base URL, model, and API Key fields.
   - Reworked prompt scoring so professional candidates produce differentiated scores instead of all 100.
@@ -420,11 +420,51 @@
 | Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 17 tests pass | 4 files, 17 tests passed | Pass |
 | Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
 
+### Phase 27: PR 13 NovelAI & GPT Image Providers (NovelAI 已于后续移除)
+- **Status:** complete (NovelAI removed)
+- Actions taken:
+  - Added `ImageRuntimeConfig` to `config.py` (parallel to `LlmRuntimeConfig`) with OpenAI key support.
+  - Added `ImageGenProvider`, `ImageConfigUpdate`, `ImageConfigResponse` Pydantic models to `config_models.py`.
+  - Added `GET/PUT /api/config/image` routes in `config_routes.py`.
+  - Implemented `GptImageProvider` calling OpenAI Images API (GPT Image / DALL-E), decoding `b64_json` responses.
+  - Added `negativePrompt` field to `ImageGenerationRequest` model.
+  - Added `_select_provider()` method to `AssetGenerationService` for targetModel-based routing with auto-fallback to Mock.
+  - Created `frontend/src/imageConfig.js` with provider/model/size/quality options and API helpers.
+  - Added "Image API 配置" nav tab and `ImageConfigPage` component.
+  - Added CSS styles for image config hint panels.
+  - Wrote PR13 description document.
+  - CORS: added port 5173 (Vite dev server).
+  - Updated `.env.example` with image generation environment variables.
+  - **后续移除：** NovelAI 生成效果不适合本项目，整条 NovelAI provider 链路已删除。
+- Files created/modified:
+  - `backend/app/providers/gpt_image_provider.py` (NEW)
+  - `backend/app/models/config_models.py`
+  - `backend/app/config.py`
+  - `backend/app/routes/config_routes.py`
+  - `backend/app/services/asset_generation_service.py`
+  - `backend/app/models/asset_models.py`
+  - `backend/app/main.py`
+  - `backend/tests/test_gpt_image_provider.py` (NEW)
+  - `frontend/src/imageConfig.js` (NEW)
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `.env.example`
+  - `docs/pr-descriptions/PR_13_NOVELAI_GPT_IMAGE.md` (NEW)
+  - `task_plan.md`
+  - `progress.md`
+
+## PR13 Test Results (Current)
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend full suite | `python -m pytest` in `backend` | All tests pass | 81 passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | All tests pass | All passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | PR 12 — MVP Complete |
-| Where am I going? | Push PR12, merge all PRs, deliver MVP |
-| What's the goal? | Runnable GameAsset Forge MVP matching the PR plan — DONE |
+| Where am I? | Post PR13 — NovelAI removed, GPT Image provider active |
+| Where am I going? | Commit and push PR13 |
+| What's the goal? | Runnable GameAsset Forge MVP + real AI providers — DONE |
 | What have I learned? | See findings.md |
-| What have I done? | Completed all 12 PRs for MVP |
+| What have I done? | Completed all 13 PRs for MVP |

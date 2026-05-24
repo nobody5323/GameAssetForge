@@ -11,6 +11,7 @@ import {
   ImageOff,
   Loader2,
   Package,
+  Paintbrush,
   Plus,
   Play,
   RefreshCw,
@@ -32,6 +33,17 @@ import {
 } from './assetGeneration.js';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
+  applyImageConfigResponse,
+  buildImageConfigPayload,
+  defaultImageConfigForm,
+  fetchImageConfig,
+  imageGenProviders,
+  imageGenQualities,
+  imageGenSizes,
+  openaiImageModels,
+  saveImageConfig,
+} from './imageConfig.js';
+import {
   applyLlmConfigResponse,
   buildLlmConfigPayload,
   defaultLlmConfigForm,
@@ -50,6 +62,7 @@ import {
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
   { id: 'config', label: 'LLM 配置', icon: Bot },
+  { id: 'imageConfig', label: 'Image API 配置', icon: Paintbrush },
   { id: 'library', label: '素材库', icon: Image },
   { id: 'quality', label: '质量报告', icon: ShieldCheck },
   { id: 'export', label: '导出交付', icon: Archive },
@@ -93,6 +106,9 @@ function App() {
   const [llmConfigForm, setLlmConfigForm] = useState(defaultLlmConfigForm);
   const [llmConfigStatus, setLlmConfigStatus] = useState('尚未读取后端配置');
   const [llmConfigLoading, setLlmConfigLoading] = useState(false);
+  const [imageConfigForm, setImageConfigForm] = useState(defaultImageConfigForm);
+  const [imageConfigStatus, setImageConfigStatus] = useState('尚未读取后端配置');
+  const [imageConfigLoading, setImageConfigLoading] = useState(false);
   const currentView = views.find((view) => view.id === activeView) || views[0];
 
   return (
@@ -151,6 +167,16 @@ function App() {
             setStatus={setLlmConfigStatus}
             loading={llmConfigLoading}
             setLoading={setLlmConfigLoading}
+          />
+        )}
+        {activeView === 'imageConfig' && (
+          <ImageConfigPage
+            form={imageConfigForm}
+            setForm={setImageConfigForm}
+            status={imageConfigStatus}
+            setStatus={setImageConfigStatus}
+            loading={imageConfigLoading}
+            setLoading={setImageConfigLoading}
           />
         )}
         {activeView === 'library' && <LibraryPage />}
@@ -465,6 +491,8 @@ function GeneratePage({
 }
 
 function GeneratedAssetsPanel({ state }) {
+  const [lightbox, setLightbox] = useState(null);
+
   return (
     <section className="panel generated-results">
       <div className="section-heading">
@@ -479,7 +507,10 @@ function GeneratedAssetsPanel({ state }) {
         <div className="generated-grid">
           {state.response.assets.map((asset) => (
             <article className="generated-card" key={asset.id}>
-              <div className="generated-thumb">
+              <div
+                className="generated-thumb"
+                onClick={() => setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider, prompt: asset.finalPrompt })}
+              >
                 <img src={buildAssetPreviewUrl(asset.localPath)} alt={`${asset.assetName} preview`} />
               </div>
               <div className="generated-card-head">
@@ -494,6 +525,19 @@ function GeneratedAssetsPanel({ state }) {
               <pre>{asset.finalPrompt}</pre>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -703,11 +747,218 @@ function ConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
   );
 }
 
+function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading }) {
+  async function loadConfig() {
+    setLoading(true);
+    setStatus('正在读取配置');
+    try {
+      const response = await fetchImageConfig();
+      setForm((current) => ({ ...current, ...applyImageConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '后端已配置 API Key/Token' : '后端暂无 API Key/Token');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveConfig(event) {
+    event.preventDefault();
+    setLoading(true);
+    setStatus('正在保存配置');
+    try {
+      const response = await saveImageConfig(buildImageConfigPayload(form));
+      setForm((current) => ({ ...current, ...applyImageConfigResponse(response) }));
+      setStatus(response.hasApiKey ? '配置已保存，真实生图已就绪' : '配置已保存，将使用 Mock 降级');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateConfig(field, value) {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      // Auto-switch model when provider changes
+      if (field === 'provider') {
+        next.imageModel = 'gpt-image-2';
+        next.baseUrl = 'https://api.openai.com/v1';
+      }
+      return next;
+    });
+  }
+
+  const isDallE = form.imageModel.startsWith('dall-e');
+  const modelOptions = openaiImageModels;
+
+  return (
+    <section className="panel config-panel">
+      <div className="section-heading">
+        <h3>Image API 配置</h3>
+        <span>{status}</span>
+      </div>
+      <form onSubmit={saveConfig}>
+        <div className="field-grid">
+          <label>
+            生图 Provider
+            <select
+              value={form.provider}
+              onChange={(event) => updateConfig('provider', event.target.value)}
+            >
+              {imageGenProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            API Endpoint
+            <input
+              value={form.baseUrl}
+              onChange={(event) => updateConfig('baseUrl', event.target.value)}
+              placeholder="https://api.openai.com/v1"
+            />
+          </label>
+          <label>
+            图片模型
+            <select
+              value={form.imageModel}
+              onChange={(event) => updateConfig('imageModel', event.target.value)}
+            >
+              {modelOptions.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            输出尺寸
+            <select
+              value={form.imageSize}
+              onChange={(event) => updateConfig('imageSize', event.target.value)}
+            >
+              {imageGenSizes.map((size) => (
+                <option key={size.id} value={size.id}>
+                  {size.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isDallE && (
+            <label>
+              画质
+              <select
+                value={form.imageQuality}
+                onChange={(event) => updateConfig('imageQuality', event.target.value)}
+              >
+                {imageGenQualities.map((quality) => (
+                  <option key={quality.id} value={quality.id}>
+                    {quality.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <label>
+          OpenAI API Key
+          <input
+            type="password"
+            value={form.apiKey}
+            onChange={(event) => updateConfig('apiKey', event.target.value)}
+            placeholder={
+              form.hasApiKey
+                ? '后端已有 Key，留空表示不修改'
+                : '输入 sk-...'
+            }
+          />
+        </label>
+
+        <label className="inline-checkbox">
+          <input
+            type="checkbox"
+            checked={form.clearApiKey}
+            onChange={(event) => updateConfig('clearApiKey', event.target.checked)}
+          />
+          清空当前 API Key / Token
+        </label>
+
+        <label>
+          HTTP 代理（可选）
+          <input
+            value={form.proxyUrl}
+            onChange={(event) => updateConfig('proxyUrl', event.target.value)}
+            placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+          />
+        </label>
+        {form.proxyUrl && (
+          <label className="inline-checkbox">
+            <input
+              type="checkbox"
+              checked={form.clearProxy}
+              onChange={(event) => updateConfig('clearProxy', event.target.checked)}
+            />
+            清空代理设置
+          </label>
+        )}
+
+        <div className="image-config-hint">
+          <h4>
+            <Paintbrush size={12} />
+            OpenAI 图像生成使用说明
+          </h4>
+          <ul>
+            <li>需要 <code>sk-...</code> 格式的 OpenAI API Key，需开通图像生成使用权限</li>
+            <li>GPT Image 2 是最新模型，DALL-E 3/2 为旧版</li>
+            <li>GPT Image 2 支持 1024×1024、1024×1536、1536×1024 等多种尺寸</li>
+            <li>无 Key 时自动降级为 Mock Provider</li>
+          </ul>
+        </div>
+
+        <div className="config-status-grid">
+          <div>
+            <strong>Provider</strong>
+            <span>OpenAI</span>
+          </div>
+          <div>
+            <strong>Model</strong>
+            <span>{form.imageModel}</span>
+          </div>
+          <div>
+            <strong>Size</strong>
+            <span>{form.imageSize}</span>
+          </div>
+          <div>
+            <strong>Key/Token</strong>
+            <span>{form.hasApiKey ? '已配置' : '未配置'}</span>
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="primary-button" type="submit" disabled={loading}>
+            <Paintbrush size={14} />
+            SAVE CONFIG
+          </button>
+          <button className="secondary-button" type="button" onClick={loadConfig} disabled={loading}>
+            <RefreshCw size={14} />
+            LOAD CONFIG
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 function LibraryPage() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
+  const [lightbox, setLightbox] = useState(null);
 
   async function loadAssets(selectedCategory) {
     setLoading(true);
@@ -804,7 +1055,10 @@ function LibraryPage() {
         <div className="asset-grid">
           {assets.map((asset) => (
             <article className="asset-card" key={asset.id}>
-              <div className="asset-thumb">
+              <div
+                className="asset-thumb"
+                onClick={() => asset.localPath && setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider })}
+              >
                 {asset.localPath ? (
                   <img
                     src={buildAssetPreviewUrl(asset.localPath)}
@@ -825,6 +1079,19 @@ function LibraryPage() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>

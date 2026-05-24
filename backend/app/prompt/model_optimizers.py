@@ -1,4 +1,5 @@
 from app.models.prompt_models import PromptAssetRequest, PromptDirection, TargetModel
+from app.prompt.chinese_translator import sanitize_prompt, translate_chinese_text
 
 
 DIRECTION_NOTES: dict[PromptDirection, str] = {
@@ -21,8 +22,6 @@ class PromptOptimizer:
     ) -> tuple[str, str | None]:
         if target_model == "mock_seed":
             return self._mock_seed_prompt(asset, tags, direction, project_context)
-        if target_model == "novelai":
-            return self._novelai_prompt(asset, tags, direction, project_context)
         return self._gpt_image_prompt(asset, tags, direction, project_context)
 
     def _mock_seed_prompt(
@@ -64,22 +63,22 @@ class PromptOptimizer:
                 [
                     "Create a simple 2D game asset concept.",
                     f"Project context: {project_context}",
-                    f"Asset type: {asset.type}",
-                    f"Subject: {asset.description}",
+                    f"Asset type: {translate_chinese_text(asset.type)}",
+                    f"Subject: {translate_chinese_text(asset.description)}",
                     f"Style: {', '.join(tags['style'])}",
                     f"Theme: {', '.join(tags['theme'])}",
                     "Technical requirements: clear silhouette, centered composition, game-ready asset",
                     "Avoid: no text, no watermark, no blurry edges",
                 ]
             )
-            return prompt, None
+            return sanitize_prompt(prompt), None
 
         prompt = "\n".join(
             [
                 "Create a production-ready 2D game asset.",
                 f"Project context: {project_context}",
-                f"Asset type: {asset.type}",
-                f"Subject: {asset.description}",
+                f"Asset type: {translate_chinese_text(asset.type)}",
+                f"Subject: {translate_chinese_text(asset.description)}",
                 f"Direction: {DIRECTION_NOTES[direction]}",
                 f"Direction profile: {direction}",
                 f"Style tags: {', '.join(tags['style'])}",
@@ -89,45 +88,4 @@ class PromptOptimizer:
                 f"Avoid: {', '.join(tags['negative'])}",
             ]
         )
-        return prompt, None
-
-    def _novelai_prompt(
-        self,
-        asset: PromptAssetRequest,
-        tags: dict[str, list[str]],
-        direction: PromptDirection,
-        project_context: str,
-    ) -> tuple[str, str]:
-        if direction == "quick_start":
-            positive_tags = [
-                "game asset",
-                "2d sprite",
-                asset.type.replace("_", " "),
-                asset.name.replace("_", " "),
-                asset.description,
-                *tags["style"],
-                *tags["theme"],
-                "clear silhouette",
-                "centered composition",
-            ]
-            negative_prompt = ", ".join(["no text", "no watermark", "low quality"])
-            return ", ".join(filter(None, positive_tags)), negative_prompt
-
-        positive_tags = [
-            "best quality",
-            "game asset",
-            "2d sprite",
-            asset.type.replace("_", " "),
-            asset.name.replace("_", " "),
-            asset.description,
-            DIRECTION_NOTES[direction],
-            direction.replace("_", " "),
-            project_context,
-            *tags["style"],
-            *tags["theme"],
-            *tags["environment"],
-            *tags["mood"],
-            *tags["technical"],
-        ]
-        negative_prompt = ", ".join(tags["negative"] + ["low quality", "bad anatomy"])
-        return ", ".join(filter(None, positive_tags)), negative_prompt
+        return sanitize_prompt(prompt), None
