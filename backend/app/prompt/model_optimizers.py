@@ -1,4 +1,5 @@
 from app.models.prompt_models import PromptAssetRequest, PromptDirection, TargetModel
+from app.prompt.chinese_translator import translate_chinese_text
 
 
 DIRECTION_NOTES: dict[PromptDirection, str] = {
@@ -64,8 +65,8 @@ class PromptOptimizer:
                 [
                     "Create a simple 2D game asset concept.",
                     f"Project context: {project_context}",
-                    f"Asset type: {asset.type}",
-                    f"Subject: {asset.description}",
+                    f"Asset type: {translate_chinese_text(asset.type)}",
+                    f"Subject: {translate_chinese_text(asset.description)}",
                     f"Style: {', '.join(tags['style'])}",
                     f"Theme: {', '.join(tags['theme'])}",
                     "Technical requirements: clear silhouette, centered composition, game-ready asset",
@@ -78,8 +79,8 @@ class PromptOptimizer:
             [
                 "Create a production-ready 2D game asset.",
                 f"Project context: {project_context}",
-                f"Asset type: {asset.type}",
-                f"Subject: {asset.description}",
+                f"Asset type: {translate_chinese_text(asset.type)}",
+                f"Subject: {translate_chinese_text(asset.description)}",
                 f"Direction: {DIRECTION_NOTES[direction]}",
                 f"Direction profile: {direction}",
                 f"Style tags: {', '.join(tags['style'])}",
@@ -102,9 +103,9 @@ class PromptOptimizer:
             positive_tags = [
                 "game asset",
                 "2d sprite",
-                asset.type.replace("_", " "),
-                asset.name.replace("_", " "),
-                asset.description,
+                translate_chinese_text(asset.type.replace("_", " ")),
+                translate_chinese_text(asset.name.replace("_", " ")),
+                translate_chinese_text(asset.description),
                 *tags["style"],
                 *tags["theme"],
                 "clear silhouette",
@@ -117,9 +118,9 @@ class PromptOptimizer:
             "best quality",
             "game asset",
             "2d sprite",
-            asset.type.replace("_", " "),
-            asset.name.replace("_", " "),
-            asset.description,
+            translate_chinese_text(asset.type.replace("_", " ")),
+            translate_chinese_text(asset.name.replace("_", " ")),
+            translate_chinese_text(asset.description),
             DIRECTION_NOTES[direction],
             direction.replace("_", " "),
             project_context,
