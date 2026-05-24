@@ -449,6 +449,17 @@ def translate_chinese_text(text: str | None) -> str:
     return " ".join(result_parts).strip()
 
 
+def sanitize_prompt(prompt: str) -> str:
+    """Final safety net — translate any remaining Chinese in a generated prompt.
+
+    All tagged fields should already be translated before assembly, but this
+    catches leaks so no Chinese ever reaches an image generation API.
+    """
+    if not prompt:
+        return prompt
+    return translate_chinese_text(prompt)
+
+
 def extract_chinese_tags(text: str) -> list[str]:
     """Extract and translate known Chinese terms from *text*.
 

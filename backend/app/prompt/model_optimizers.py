@@ -1,5 +1,5 @@
 from app.models.prompt_models import PromptAssetRequest, PromptDirection, TargetModel
-from app.prompt.chinese_translator import translate_chinese_text
+from app.prompt.chinese_translator import sanitize_prompt, translate_chinese_text
 
 
 DIRECTION_NOTES: dict[PromptDirection, str] = {
@@ -73,7 +73,7 @@ class PromptOptimizer:
                     "Avoid: no text, no watermark, no blurry edges",
                 ]
             )
-            return prompt, None
+            return sanitize_prompt(prompt), None
 
         prompt = "\n".join(
             [
@@ -90,7 +90,7 @@ class PromptOptimizer:
                 f"Avoid: {', '.join(tags['negative'])}",
             ]
         )
-        return prompt, None
+        return sanitize_prompt(prompt), None
 
     def _novelai_prompt(
         self,
@@ -112,7 +112,7 @@ class PromptOptimizer:
                 "centered composition",
             ]
             negative_prompt = ", ".join(["no text", "no watermark", "low quality"])
-            return ", ".join(filter(None, positive_tags)), negative_prompt
+            return sanitize_prompt(", ".join(filter(None, positive_tags))), negative_prompt
 
         positive_tags = [
             "best quality",
@@ -131,4 +131,4 @@ class PromptOptimizer:
             *tags["technical"],
         ]
         negative_prompt = ", ".join(tags["negative"] + ["low quality", "bad anatomy"])
-        return ", ".join(filter(None, positive_tags)), negative_prompt
+        return sanitize_prompt(", ".join(filter(None, positive_tags))), negative_prompt
