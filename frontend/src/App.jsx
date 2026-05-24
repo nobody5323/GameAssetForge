@@ -78,6 +78,14 @@ const views = [
 ];
 
 const assetTypes = ['character', 'enemy', 'item', 'tileset', 'ui', 'background'];
+const assetTypeLabels = {
+  character: '角色',
+  enemy: '敌人',
+  item: '物品',
+  tileset: '地砖',
+  ui: 'UI',
+  background: '背景',
+};
 const gameTypeLabels = {
   '': '无',
   platformer: '横版闯关',
@@ -404,7 +412,7 @@ function GeneratePage({
                 <select value={asset.type} onChange={(event) => updateAsset(index, 'type', event.target.value)}>
                   {assetTypes.map((assetType) => (
                     <option key={assetType} value={assetType}>
-                      {assetType}
+                      {assetTypeLabels[assetType] || assetType}
                     </option>
                   ))}
                 </select>
@@ -552,7 +560,7 @@ function GeneratedAssetsPanel({ state }) {
               <div className="generated-card-head">
                 <CheckCircle2 size={16} />
                 <strong>{asset.assetName}</strong>
-                <span>{asset.assetType}</span>
+                <span>{assetTypeLabels[asset.assetType] || asset.assetType}</span>
               </div>
               <p>{asset.localPath}</p>
               <small>
@@ -626,7 +634,7 @@ function PromptResultPanel({ response, loading, selectedCandidateId, onSelect })
             {candidate.assets.map((asset) => (
               <div className="prompt-asset" key={`${candidate.id}-${asset.assetName}`}>
                 <h4>
-                  {asset.assetName} <span>{asset.assetType}</span>
+                  {asset.assetName} <span>{assetTypeLabels[asset.assetType] || asset.assetType}</span>
                 </h4>
                 <pre>{asset.finalPrompt}</pre>
                 {asset.negativePrompt && (
@@ -1267,7 +1275,7 @@ function LibraryPage() {
               </div>
               <div className="asset-card-info">
                 <h4>{asset.assetName}</h4>
-                <p>{asset.assetType}</p>
+                <p>{assetTypeLabels[asset.assetType] || asset.assetType}</p>
                 <span className="score">
                   QS {asset.qualityScore != null ? `${asset.qualityScore}/100` : '--'}
                 </span>
@@ -1443,7 +1451,7 @@ function QualityPage() {
                   {assetReport.totalScore}/100
                 </span>
                 <strong>{assetReport.assetName}</strong>
-                <span className="quality-asset-type">{assetReport.assetType}</span>
+                <span className="quality-asset-type">{assetTypeLabels[assetReport.assetType] || assetReport.assetType}</span>
               </div>
               <div className="quality-checks">
                 {assetReport.checks.map((check) => (
