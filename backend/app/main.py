@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.routes.asset_routes import router as asset_router
+from app.routes.cloud_routes import router as cloud_router
 from app.routes.config_routes import router as config_router
 from app.routes.export_routes import router as export_router
 from app.routes.health_routes import router as health_router
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(asset_router, prefix="/api")
     app.include_router(quality_router, prefix="/api")
     app.include_router(export_router, prefix="/api")
+    app.include_router(cloud_router, prefix="/api")
     app.mount("/runtime", StaticFiles(directory=runtime_dir), name="runtime")
     return app
 

@@ -22,6 +22,22 @@ class AssetRepository:
         data = self._load()
         return [AssetRecord(**asset) for asset in data["assets"].values()]
 
+    def update_asset(self, asset: AssetRecord) -> None:
+        """更新已有素材记录（根据 id 匹配）。"""
+        data = self._load()
+        if asset.id not in data["assets"]:
+            raise KeyError(f"素材不存在：{asset.id}")
+        data["assets"][asset.id] = asset.model_dump()
+        self._save(data)
+
+    def find_asset(self, asset_id: str) -> AssetRecord | None:
+        """按 ID 查找单个素材。"""
+        data = self._load()
+        entry = data["assets"].get(asset_id)
+        if entry is None:
+            return None
+        return AssetRecord(**entry)
+
     def _load(self) -> dict:
         if not DB_PATH.exists():
             return {"generations": {}, "assets": {}}
