@@ -24,6 +24,8 @@ export const openaiImageModels = [
 ];
 
 export const novelaiImageModels = [
+  { id: 'nai-diffusion-4', label: 'NAI Diffusion 4 (Full)' },
+  { id: 'nai-diffusion-4.5', label: 'NAI Diffusion 4.5' },
   { id: 'nai-diffusion-3', label: 'NAI Diffusion 3' },
   { id: 'nai-diffusion-furry-3', label: 'NAI Diffusion Furry 3' },
 ];
