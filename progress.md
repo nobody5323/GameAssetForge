@@ -316,6 +316,36 @@
 | Bad naming detection | asset name "Bad Name!" | naming check fails | naming score < 10, not passed | Pass |
 | Missing file detection | Delete PNG then inspect | format check fails | score=0, "不存在" in message | Pass |
 
+### Phase 21: PR 10 Quality Report Page
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-10-quality-report-page` from latest `origin/main`.
+  - Added `fetchQualityReport(generationId)` helper in `assetGeneration.js`.
+  - Rewrote `QualityPage` from static placeholder to full dynamic report:
+    - Auto-loads existing generation IDs from asset library for dropdown selection.
+    - Score ring showing overallScore with color coding (green ≥80, yellow 60-79, red <60).
+    - Stats cards: total assets, pass count (≥60), fail count (<60).
+    - Per-asset cards with check-by-check breakdown: pass/fail icon, description, deduction amount.
+    - Loading spinner, error state, empty generation state.
+  - Added quality report CSS: `.quality-panel`, `.quality-score-ring`, `.quality-stats`, `.quality-asset-card`, `.quality-check-row` with pass/fail color coding.
+  - Updated frontend tests: 15 tests pass (added `fetchQualityReport` export test).
+  - No backend changes needed — PR10 is a pure frontend PR consuming PR9's API.
+- Files created/modified:
+  - `frontend/src/assetGeneration.js`
+  - `frontend/src/assetGeneration.test.js`
+  - `frontend/src/App.jsx`
+  - `frontend/src/styles.css`
+  - `docs/pr-descriptions/PR_10_QUALITY_REPORT_PAGE.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR10 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend full suite | `python -m pytest` in `backend` | All 34 tests pass | 34 passed | Pass |
+| Frontend unit tests | `npx vitest run` in `frontend` | 4 files, 15 tests pass | 4 files, 15 tests passed | Pass |
+| Frontend build | `npm run build` in `frontend` | Production build succeeds | Vite build completed | Pass |
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|

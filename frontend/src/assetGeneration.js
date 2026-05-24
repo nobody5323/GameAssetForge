@@ -33,6 +33,17 @@ export async function fetchAssets(category) {
   return response.json();
 }
 
+export async function fetchQualityReport(generationId) {
+  const response = await fetch(`${API_BASE_URL}/quality/report/${encodeURIComponent(generationId)}`);
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Quality report failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export function buildAssetPreviewUrl(localPath) {
   if (!localPath) {
     return '';

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Archive,
   Bot,
   CheckCircle2,
@@ -13,10 +14,12 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 import {
   buildAssetPreviewUrl,
   fetchAssets,
+  fetchQualityReport,
   generateAssets,
   summarizeGeneratedAssets,
 } from './assetGeneration.js';
@@ -822,25 +825,182 @@ function LibraryPage() {
 }
 
 function QualityPage() {
-  const checks = ['图片格式', '图片尺寸', '命名规范', '分类目录', 'Prompt 记录'];
+  const [generationId, setGenerationId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [report, setReport] = useState(null);
+  const [generationIds, setGenerationIds] = useState([]);
+  const [loadingIds, setLoadingIds] = useState(true);
+
+  useEffect(() => {
+    async function loadIds() {
+      try {
+        const assets = await fetchAssets();
+        const ids = [...new Set(assets.map((a) => a.generationId))];
+        setGenerationIds(ids);
+        if (ids.length > 0 && !generationId) {
+          setGenerationId(ids[0]);
+        }
+      } catch {
+        // 素材库不可用时静默处理
+      } finally {
+        setLoadingIds(false);
+      }
+    }
+    loadIds();
+  }, []);
+
+  async function handleInspect(event) {
+    event.preventDefault();
+    if (!generationId.trim()) return;
+    setLoading(true);
+    setError('');
+    setReport(null);
+    try {
+      const data = await fetchQualityReport(generationId.trim());
+      setReport(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Quality check failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function scoreColor(score) {
+    if (score >= 80) return 'var(--accent)';
+    if (score >= 60) return 'var(--accent-yellow)';
+    return 'var(--accent-red)';
+  }
 
   return (
-    <section className="panel">
-      <div className="quality-summary">
-        <ShieldCheck size={36} className="quality-icon" />
-        <div>
-          <h3>Quality Inspector</h3>
-          <p>后续 PR 接入评分数据</p>
-        </div>
+    <section className="panel quality-panel">
+      <div className="section-heading">
+        <h3>Quality Inspector</h3>
+        <span>{report ? `报告就绪` : '待检查'}</span>
       </div>
-      <div className="check-list">
-        {checks.map((check) => (
-          <div className="check-row" key={check}>
-            <strong>{check}</strong>
-            <span>--/--</span>
+
+      <form className="quality-form" onSubmit={handleInspect}>
+        <label>
+          Generation ID
+          <div className="quality-input-row">
+            {generationIds.length > 0 ? (
+              <select
+                value={generationId}
+                onChange={(e) => setGenerationId(e.target.value)}
+              >
+                {generationIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={generationId}
+                onChange={(e) => setGenerationId(e.target.value)}
+                placeholder="输入 generation ID，例如 gen_abc123..."
+              />
+            )}
+            <button className="primary-button" type="submit" disabled={loading || !generationId.trim()}>
+              <ShieldCheck size={14} />
+              INSPECT
+            </button>
           </div>
-        ))}
-      </div>
+        </label>
+        {loadingIds && <small>正在加载已有的 generation 列表...</small>}
+      </form>
+
+      {loading && (
+        <div className="empty-state">
+          <Loader2 size={28} />
+          正在执行质量检查...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="empty-state">
+          <XCircle size={28} color="var(--accent-red)" />
+          <p className="error-line">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && !report && (
+        <div className="empty-state">
+          <ShieldCheck size={28} />
+          选择一个 Generation ID 并点击 INSPECT 开始质量检查。
+        </div>
+      )}
+
+      {report && report.assetCount === 0 && (
+        <div className="empty-state">
+          <AlertTriangle size={28} color="var(--accent-yellow)" />
+          该 generation 下没有找到素材记录。
+        </div>
+      )}
+
+      {report && report.assetCount > 0 && (
+        <div className="quality-report-body">
+          {/* 总览卡片 */}
+          <div className="quality-overview">
+            <div className="quality-score-ring" style={{ borderColor: scoreColor(report.overallScore) }}>
+              <span className="quality-score-num" style={{ color: scoreColor(report.overallScore) }}>
+                {report.overallScore}
+              </span>
+              <span className="quality-score-label">/ {report.maxScore}</span>
+            </div>
+            <div className="quality-stats">
+              <div className="quality-stat">
+                <strong>{report.assetCount}</strong>
+                <span>素材总数</span>
+              </div>
+              <div className="quality-stat pass">
+                <strong>{report.passCount}</strong>
+                <span>通过 (≥60)</span>
+              </div>
+              <div className="quality-stat fail">
+                <strong>{report.failCount}</strong>
+                <span>未通过 (&lt;60)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 每个素材的报告 */}
+          {report.assets.map((assetReport) => (
+            <div className="quality-asset-card" key={assetReport.assetId}>
+              <div className="quality-asset-head">
+                <span className="quality-asset-score" style={{ color: scoreColor(assetReport.totalScore) }}>
+                  {assetReport.totalScore}/100
+                </span>
+                <strong>{assetReport.assetName}</strong>
+                <span className="quality-asset-type">{assetReport.assetType}</span>
+              </div>
+              <div className="quality-checks">
+                {assetReport.checks.map((check) => (
+                  <div
+                    className={`quality-check-row ${check.passed ? 'passed' : 'failed'}`}
+                    key={check.name}
+                  >
+                    <span className="quality-check-icon">
+                      {check.passed ? (
+                        <CheckCircle2 size={16} />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                    </span>
+                    <div className="quality-check-info">
+                      <strong>{check.label}</strong>
+                      <p>{check.message}</p>
+                    </div>
+                    <span className="quality-check-deduction">
+                      {check.passed ? '✓' : `-${check.score}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
