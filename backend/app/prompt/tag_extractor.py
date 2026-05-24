@@ -3,35 +3,36 @@ from app.prompt.chinese_translator import extract_chinese_tags, translate_chines
 
 
 STYLE_TAGS = {
-    "pixel_art": ["pixel art", "limited palette", "crisp edges"],
-    "cartoon": ["cartoon style", "bold outline", "clean shapes"],
-    "dark_fantasy": ["dark fantasy", "moody lighting", "ornate silhouette"],
-    "cyberpunk": ["cyberpunk", "neon accents", "high-tech details"],
+    "pixel_art": ["pixel art", "8-bit", "retro game"],
+    "cartoon": ["cartoon", "flat color", "simple background"],
+    "dark_fantasy": ["dark fantasy", "moody", "gothic"],
+    "cyberpunk": ["cyberpunk", "neon", "science fiction"],
 }
 
 ASSET_TAGS = {
-    "character": ["playable character", "clear silhouette"],
-    "enemy": ["enemy sprite", "readable threat shape"],
-    "item": ["collectible item", "icon-like shape"],
-    "tileset": ["tileable terrain", "seamless edges"],
-    "ui": ["game ui", "clean iconography"],
-    "background": ["2d background", "parallax-ready layer"],
+    "character": ["1girl"],
+    "enemy": ["monster"],
+    "item": ["item", "simple background"],
+    "tileset": ["scenery", "no humans"],
+    "ui": ["ui", "simple background"],
+    "background": ["scenery", "no humans"],
 }
 
 TECHNICAL_TAGS = [
-    "centered composition",
-    "clear silhouette",
-    "readable at small size",
     "simple background",
-    "game-ready asset",
 ]
 
 NEGATIVE_TAGS = [
-    "no text",
-    "no watermark",
-    "no blurry edges",
-    "no cropped subject",
-    "no complex background",
+    "lowres",
+    "bad anatomy",
+    "bad hands",
+    "worst quality",
+    "low quality",
+    "normal quality",
+    "jpeg artifacts",
+    "signature",
+    "watermark",
+    "blurry",
 ]
 
 
@@ -76,9 +77,9 @@ def extract_prompt_tags(request: PromptCompileRequest) -> dict[str, list[str]]:
 
     lowered = text.lower()
     if "forest" in lowered or "竹林" in text or "森林" in text:
-        environment_tags.append("forest environment")
+        environment_tags.append("forest")
     if "cyber" in lowered or "赛博" in text:
-        mood_tags.extend(["neon atmosphere", "futuristic mood"])
+        mood_tags.extend(["neon", "futuristic"])
 
     return {
         "style": dedupe(style_tags),

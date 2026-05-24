@@ -22,8 +22,8 @@ V4_DEFAULT_NEGATIVE_PROMPT = (
     "chromatic aberration, logo, dated, signature, multiple views, gigantic breasts"
 )
 
-# Quality tags appended to prompt for V4+
-V4_QUALITY_TAGS = "rating:general, amazing quality, very aesthetic, absurdres"
+# Quality tags prepended to prompt for V4+ (Danbooru tag convention)
+V4_QUALITY_TAGS = "masterpiece, best quality, amazing quality, very aesthetic, absurdres, rating:general"
 
 
 class NovelAIImageProvider(ImageProvider):
