@@ -19,3 +19,27 @@ class LlmConfigResponse(BaseModel):
     baseUrl: str
     promptModel: str
     hasApiKey: bool
+
+
+# ── Image Generation Config ──
+
+ImageGenProvider = Literal["openai", "novelai"]
+
+
+class ImageConfigUpdate(BaseModel):
+    provider: ImageGenProvider = "openai"
+    baseUrl: str = "https://api.openai.com/v1"
+    imageModel: str = "dall-e-3"
+    imageSize: str = "1024x1024"
+    imageQuality: str = "standard"
+    apiKey: str | None = None
+    clearApiKey: bool = False
+
+
+class ImageConfigResponse(BaseModel):
+    provider: ImageGenProvider
+    baseUrl: str
+    imageModel: str
+    imageSize: str
+    imageQuality: str
+    hasApiKey: bool
