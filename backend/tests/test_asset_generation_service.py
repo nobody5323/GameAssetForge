@@ -71,3 +71,136 @@ def test_generate_assets_creates_mock_files_and_repository_records(monkeypatch):
     repository_data = DB_PATH.read_text(encoding="utf-8")
     assert data["generationId"] in repository_data
     assert asset["id"] in repository_data
+
+
+def test_list_assets_returns_all_assets(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    _clean_runtime_records()
+    client = TestClient(app)
+
+    # Generate two different asset types first
+    client.post(
+        "/api/assets/generate",
+        json={
+            "projectName": "Test Game",
+            "gameType": "platformer",
+            "style": "pixel_art",
+            "theme": "test theme",
+            "description": "a test game",
+            "targetModel": "mock_seed",
+            "promptMode": "normal",
+            "assets": [
+                {"type": "character", "name": "hero", "description": "main character"},
+                {"type": "enemy", "name": "slime", "description": "a slime"},
+            ],
+        },
+    )
+
+    # GET all assets (no filter)
+    response = client.get("/api/assets")
+    assert response.status_code == 200
+    assets = response.json()
+    assert len(assets) == 2
+    asset_types = {a["assetType"] for a in assets}
+    assert asset_types == {"character", "enemy"}
+
+
+def test_list_assets_filters_by_category(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    _clean_runtime_records()
+    client = TestClient(app)
+
+    client.post(
+        "/api/assets/generate",
+        json={
+            "projectName": "Test Game",
+            "gameType": "platformer",
+            "style": "pixel_art",
+            "theme": "test theme",
+            "description": "a test game",
+            "targetModel": "mock_seed",
+            "promptMode": "normal",
+            "assets": [
+                {"type": "character", "name": "hero", "description": "main character"},
+                {"type": "enemy", "name": "slime", "description": "a slime"},
+                {"type": "item", "name": "coin", "description": "a coin"},
+            ],
+        },
+    )
+
+    response = client.get("/api/assets?category=character")
+    assert response.status_code == 200
+    assets = response.json()
+    assert len(assets) == 1
+    assert assets[0]["assetType"] == "character"
+    assert assets[0]["assetName"] == "hero"
+
+
+def test_list_assets_empty_category_returns_empty_list(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    _clean_runtime_records()
+    client = TestClient(app)
+
+    client.post(
+        "/api/assets/generate",
+        json={
+            "projectName": "Test Game",
+            "gameType": "platformer",
+            "style": "pixel_art",
+            "theme": "test theme",
+            "description": "a test game",
+            "targetModel": "mock_seed",
+            "promptMode": "normal",
+            "assets": [
+                {"type": "character", "name": "hero", "description": "main character"},
+            ],
+        },
+    )
+
+    response = client.get("/api/assets?category=tileset")
+    assert response.status_code == 200
+    assets = response.json()
+    assert assets == []
+
+
+def test_list_assets_includes_all_fields(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PROMPT_PROVIDER", "openai")
+    _clean_runtime_records()
+    client = TestClient(app)
+
+    client.post(
+        "/api/assets/generate",
+        json={
+            "projectName": "Test Game",
+            "gameType": "platformer",
+            "style": "pixel_art",
+            "theme": "test theme",
+            "description": "a test game",
+            "targetModel": "mock_seed",
+            "promptMode": "normal",
+            "assets": [
+                {"type": "item", "name": "coin", "description": "a coin"},
+            ],
+        },
+    )
+
+    response = client.get("/api/assets")
+    assert response.status_code == 200
+    assets = response.json()
+    assert len(assets) == 1
+    asset = assets[0]
+    assert "id" in asset
+    assert "generationId" in asset
+    assert "assetName" in asset
+    assert "assetType" in asset
+    assert "style" in asset
+    assert "theme" in asset
+    assert "finalPrompt" in asset
+    assert "promptVersion" in asset
+    assert "localPath" in asset
+    assert "provider" in asset
+    assert "providerMetadata" in asset
