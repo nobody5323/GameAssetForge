@@ -244,38 +244,46 @@ def _decode_v4_msgpack_stream(data: bytes) -> bytes:
     The stream contains multiple frames per denoising step.
     Each step frame has: event_type, samp_ix, step_ix, gen_id, sigma, image.
     We collect all image frames and return the one with the lowest sigma (final step).
+
+    Falls back to raw byte scanning if msgpack parsing fails mid-stream.
     """
     last_image = None
     last_sigma = float("inf")
     error_messages = []
 
-    try:
-        unpacker = msgpack.Unpacker(io.BytesIO(data), raw=True, strict_map_key=False)
-        for msg in unpacker:
-            if isinstance(msg, dict):
-                # Check for error frames
-                event_type = msg.get(b"event_type") or msg.get("event_type")
-                if event_type in (b"error", "error"):
-                    msg_text = msg.get(b"message") or msg.get("message") or str(msg)
-                    if isinstance(msg_text, bytes):
-                        msg_text = msg_text.decode("utf-8", errors="replace")
-                    error_messages.append(str(msg_text))
-                    continue
+    def _try_extract_image(msg):
+        nonlocal last_image, last_sigma
+        if not isinstance(msg, dict):
+            return
+        # Check for error frames
+        event_type = msg.get(b"event_type") or msg.get("event_type")
+        if event_type and event_type in (b"error", "error"):
+            msg_text = msg.get(b"message") or msg.get("message") or str(msg)
+            if isinstance(msg_text, bytes):
+                msg_text = msg_text.decode("utf-8", errors="replace")
+            error_messages.append(str(msg_text))
+            return
+        # Extract image from step frames
+        img = msg.get(b"image") or msg.get("image")
+        if isinstance(img, bytes) and _is_image_data(img):
+            sigma = msg.get(b"sigma") or msg.get("sigma") or float("inf")
+            if isinstance(sigma, (int, float)) and sigma < last_sigma:
+                last_sigma = sigma
+                last_image = img
 
-                # Extract image from step frames
-                img = msg.get(b"image") or msg.get("image")
-                if isinstance(img, bytes) and _is_image_data(img):
-                    sigma = msg.get(b"sigma") or msg.get("sigma") or float("inf")
-                    if isinstance(sigma, (int, float)) and sigma < last_sigma:
-                        last_sigma = sigma
-                        last_image = img
-    except Exception as e:
-        # msgpack stream may contain non-standard frames; if we already have
-        # image data, use it; otherwise re-raise
-        if last_image is None:
-            raise RuntimeError(
-                f"Failed to decode NovelAI V4 msgpack stream: {e}"
-            ) from e
+    # Primary: parse as msgpack stream
+    try:
+        unpacker = msgpack.Unpacker(io.BytesIO(data), raw=True, strict_map_key=False, use_list=False)
+        for msg in unpacker:
+            _try_extract_image(msg)
+    except Exception:
+        # Msgpack stream often has non-standard trailing data; if we already
+        # extracted the image, that's fine — just use it.
+        pass
+
+    # Fallback: scan raw bytes for the largest JPEG/PNG blob
+    if last_image is None:
+        last_image = _scan_raw_for_image(data)
 
     if error_messages and last_image is None:
         raise RuntimeError(
@@ -288,6 +296,33 @@ def _decode_v4_msgpack_stream(data: bytes) -> bytes:
         )
 
     return last_image
+
+
+def _scan_raw_for_image(data: bytes) -> bytes | None:
+    """Fallback: scan raw bytes for the largest embedded JPEG or PNG image."""
+    import re
+
+    best = None
+    best_len = 0
+
+    # Find JPEG markers: FF D8 FF ... FF D9
+    for match in re.finditer(b"\xff\xd8\xff.{32,}?\xff\xd9", data, re.DOTALL):
+        img = match.group()
+        if len(img) > best_len:
+            best = img
+            best_len = len(img)
+
+    if best:
+        return best
+
+    # Find PNG markers: 89 50 4E 47 ... 49 45 4E 44 AE 42 60 82
+    for match in re.finditer(b"\x89PNG\r\n\x1a\n.{32,}?IEND\xaeB`\x82", data, re.DOTALL):
+        img = match.group()
+        if len(img) > best_len:
+            best = img
+            best_len = len(img)
+
+    return best
 
 
 def _parse_v3_response(response) -> bytes:
