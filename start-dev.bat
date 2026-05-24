@@ -9,7 +9,7 @@ echo.
 :: ── 后端启动 ──
 echo [1/2] 启动后端 (uvicorn :8000)...
 cd /d "%~dp0backend"
-start "GF-Backend" cmd /c "python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000"
+start "GF-Backend" cmd /c "python -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 echo        ^> PID: %errorlevel%
 echo.
 

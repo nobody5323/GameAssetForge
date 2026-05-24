@@ -13,7 +13,12 @@ GENERATED_ASSET_DIR = BACKEND_ROOT / "runtime" / "storage" / "generated-assets"
 
 
 class GptImageProvider(ImageProvider):
-    """Generates images via the OpenAI Images API (DALL-E 3 / DALL-E 2)."""
+    """Generates images via OpenAI APIs.
+
+    Dispatches to the correct endpoint based on model name:
+    - dall-e-2 / dall-e-3  →  /v1/images/generations  (Images API)
+    - gpt-image-2          →  /v1/chat/completions     (Chat Completions API)
+    """
 
     provider_name = "gpt_image"
 
@@ -27,7 +32,14 @@ class GptImageProvider(ImageProvider):
                 "Set IMAGE_GEN_API_KEY in the Image API 配置 page."
             )
 
-        base64_image, revised_prompt = self._call_dalle_api(request.finalPrompt)
+        model = image_runtime_config.image_model
+
+        if model.startswith("dall-e"):
+            base64_image, revised_prompt = self._call_dalle_api(request.finalPrompt)
+        else:
+            # gpt-image-2 (and future non-DALL-E models) use chat completions
+            base64_image, revised_prompt = self._call_chat_api(request.finalPrompt)
+
         image_bytes = base64.b64decode(base64_image)
 
         destination_path = self._destination_path(request)
@@ -41,7 +53,7 @@ class GptImageProvider(ImageProvider):
             provider=self.provider_name,
             metadata={
                 "provider": self.provider_name,
-                "model": image_runtime_config.image_model,
+                "model": model,
                 "size": image_runtime_config.image_size,
                 "quality": image_runtime_config.image_quality,
                 "promptHash": _short_hash(request.finalPrompt),
@@ -49,6 +61,60 @@ class GptImageProvider(ImageProvider):
                 "revisedPrompt": revised_prompt or request.finalPrompt,
                 "mock": False,
             },
+        )
+
+    def _call_chat_api(self, prompt: str) -> tuple[str, str | None]:
+        """Call Chat Completions API for gpt-image-2 and return (base64, revised_prompt)."""
+        api_key = image_runtime_config.api_key
+        _require_ascii(api_key, "OpenAI API Key")
+
+        model = image_runtime_config.image_model
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
+                        }
+                    ],
+                }
+            ],
+            "n": 1,
+            "size": image_runtime_config.image_size,
+        }
+
+        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+            response = client.post(
+                f"{image_runtime_config.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            _raise_on_api_error(response, "Chat Completions")
+
+        data = response.json()
+
+        # gpt-image-2 returns image data in message.annotations
+        try:
+            annotations = data["choices"][0]["message"].get("annotations", [])
+            for ann in annotations:
+                if ann.get("type") == "image":
+                    image_data = ann.get("image", {})
+                    if "b64_json" in image_data:
+                        return image_data["b64_json"], None
+        except (KeyError, IndexError):
+            pass
+
+        raise RuntimeError(
+            f"Chat Completions API returned unexpected format for model {model}. "
+            f"Expected image in message.annotations. "
+            f"Response keys: {list(data.keys())}, "
+            f"choices: {len(data.get('choices', []))}"
         )
 
     def _call_dalle_api(self, prompt: str) -> tuple[str, str | None]:
@@ -77,7 +143,7 @@ class GptImageProvider(ImageProvider):
                 },
                 json=payload,
             )
-            response.raise_for_status()
+            _raise_on_api_error(response, "Images")
 
         data = response.json()
         image_data = data["data"][0]
@@ -89,6 +155,19 @@ class GptImageProvider(ImageProvider):
         asset_type = _safe_slug(request.assetType)
         asset_name = _safe_slug(request.assetName)
         return GENERATED_ASSET_DIR / generation_id / asset_type / f"{asset_name}.png"
+
+
+def _raise_on_api_error(response: httpx.Response, api_label: str) -> None:
+    """Check response status and raise RuntimeError with the API error body."""
+    if response.is_success:
+        return
+    try:
+        body = response.text
+    except Exception:
+        body = "(unable to read response body)"
+    raise RuntimeError(
+        f"Image API ({api_label}) returned HTTP {response.status_code}: {body}"
+    )
 
 
 def _safe_slug(value: str) -> str:
