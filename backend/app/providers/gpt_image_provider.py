@@ -86,18 +86,11 @@ class GptImageProvider(ImageProvider):
             "size": image_runtime_config.image_size,
         }
 
-        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
-            response = client.post(
-                f"{image_runtime_config.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            _raise_on_api_error(response, "Chat Completions")
-
-        data = response.json()
+        data = self._httpx_post(
+            f"{image_runtime_config.base_url}/chat/completions",
+            payload,
+            "Chat Completions",
+        )
 
         # gpt-image-2 returns image data in message.annotations
         try:
@@ -134,21 +127,37 @@ class GptImageProvider(ImageProvider):
         if model.startswith("dall-e"):
             payload["quality"] = image_runtime_config.image_quality
 
-        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
-            response = client.post(
-                f"{image_runtime_config.base_url}/images/generations",
-                headers={
-                    "Authorization": f"Bearer {image_runtime_config.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            _raise_on_api_error(response, "Images")
+        data = self._httpx_post(
+            f"{image_runtime_config.base_url}/images/generations",
+            payload,
+            "Images",
+        )
 
-        data = response.json()
         image_data = data["data"][0]
         revised_prompt = image_data.get("revised_prompt")
         return image_data["b64_json"], revised_prompt
+
+    def _httpx_post(self, url: str, payload: dict, api_label: str) -> dict:
+        """Make httpx POST and return parsed JSON. Wraps network errors as RuntimeError."""
+        api_key = image_runtime_config.api_key
+        try:
+            with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+                response = client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+                _raise_on_api_error(response, api_label)
+        except RuntimeError:
+            raise
+        except httpx.RequestError as exc:
+            raise RuntimeError(
+                f"Image API ({api_label}) network error — 服务器连接断开: {exc}"
+            ) from exc
+        return response.json()
 
     def _destination_path(self, request: ImageGenerationRequest) -> Path:
         generation_id = _safe_slug(request.generationId)

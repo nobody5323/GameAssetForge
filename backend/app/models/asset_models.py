@@ -62,3 +62,4 @@ class AssetGenerateResponse(BaseModel):
     promptProvider: str
     fallback: bool
     assets: list[AssetRecord]
+    errors: list[str] = []

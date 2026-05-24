@@ -60,36 +60,45 @@ class AssetGenerationService:
         )
         selected_candidate = prompt_response.candidates[0]
         records: list[AssetRecord] = []
+        errors: list[str] = []
 
         for prompt_asset in selected_candidate.assets:
-            generated = image_provider.generate(
-                ImageGenerationRequest(
-                    generationId=generation_id,
-                    assetName=prompt_asset.assetName,
-                    assetType=prompt_asset.assetType,
-                    style=request.style,
-                    theme=request.theme,
-                    finalPrompt=prompt_asset.finalPrompt,
-                    negativePrompt=prompt_asset.negativePrompt,
-                    promptVersion=PROMPT_VERSION,
+            try:
+                generated = image_provider.generate(
+                    ImageGenerationRequest(
+                        generationId=generation_id,
+                        assetName=prompt_asset.assetName,
+                        assetType=prompt_asset.assetType,
+                        style=request.style,
+                        theme=request.theme,
+                        finalPrompt=prompt_asset.finalPrompt,
+                        negativePrompt=prompt_asset.negativePrompt,
+                        promptVersion=PROMPT_VERSION,
+                    )
                 )
-            )
-            records.append(
-                AssetRecord(
-                    id=f"asset_{uuid4().hex[:12]}",
-                    generationId=generation_id,
-                    projectName=request.projectName,
-                    assetName=prompt_asset.assetName,
-                    assetType=prompt_asset.assetType,
-                    style=request.style,
-                    theme=request.theme,
-                    finalPrompt=prompt_asset.finalPrompt,
-                    promptVersion=PROMPT_VERSION,
-                    localPath=generated.localPath,
-                    provider=generated.provider,
-                    providerMetadata=generated.metadata,
+                records.append(
+                    AssetRecord(
+                        id=f"asset_{uuid4().hex[:12]}",
+                        generationId=generation_id,
+                        projectName=request.projectName,
+                        assetName=prompt_asset.assetName,
+                        assetType=prompt_asset.assetType,
+                        style=request.style,
+                        theme=request.theme,
+                        finalPrompt=prompt_asset.finalPrompt,
+                        promptVersion=PROMPT_VERSION,
+                        localPath=generated.localPath,
+                        provider=generated.provider,
+                        providerMetadata=generated.metadata,
+                    )
                 )
-            )
+            except Exception as exc:
+                msg = f"{prompt_asset.assetType}/{prompt_asset.assetName}: {exc}"
+                errors.append(msg)
+
+        if not records and errors:
+            # All assets failed — raise the first error
+            raise RuntimeError(errors[0])
 
         self.asset_repository.save_generation(generation_id, records)
         return AssetGenerateResponse(
@@ -98,4 +107,5 @@ class AssetGenerationService:
             promptProvider=prompt_response.provider,
             fallback=prompt_response.fallback,
             assets=records,
+            errors=errors,
         )
