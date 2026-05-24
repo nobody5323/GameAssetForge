@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAssetPreviewUrl, fetchAssets, summarizeGeneratedAssets } from './assetGeneration.js';
+import {
+  buildAssetPreviewUrl,
+  exportGeneration,
+  fetchAssets,
+  fetchExportableGenerations,
+  summarizeGeneratedAssets,
+} from './assetGeneration.js';
 
 describe('summarizeGeneratedAssets', () => {
   it('summarizes a generation response for the UI status line', () => {
@@ -31,5 +37,17 @@ describe('fetchAssets', () => {
     // fetchAssets is an async function that calls fetch — we test the URL
     // construction by verifying the function signature and export
     expect(typeof fetchAssets).toBe('function');
+  });
+});
+
+describe('fetchExportableGenerations', () => {
+  it('is a function exported from the module', () => {
+    expect(typeof fetchExportableGenerations).toBe('function');
+  });
+});
+
+describe('exportGeneration', () => {
+  it('is a function exported from the module', () => {
+    expect(typeof exportGeneration).toBe('function');
   });
 });

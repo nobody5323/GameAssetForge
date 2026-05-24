@@ -1,22 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   Archive,
   Bot,
   CheckCircle2,
+  Download,
   FileJson,
   Image,
   ImageOff,
   Loader2,
+  Package,
   Plus,
   Play,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 import {
   buildAssetPreviewUrl,
+  exportGeneration,
   fetchAssets,
+  fetchExportableGenerations,
   generateAssets,
   summarizeGeneratedAssets,
 } from './assetGeneration.js';
@@ -846,15 +852,177 @@ function QualityPage() {
 }
 
 function ExportPage() {
+  const [generations, setGenerations] = useState([]);
+  const [selectedGen, setSelectedGen] = useState('');
+  const [loadingGens, setLoadingGens] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState('');
+  const [exportResult, setExportResult] = useState(null);
+  const [genError, setGenError] = useState('');
+
+  async function loadGenerations() {
+    setLoadingGens(true);
+    setGenError('');
+    try {
+      const ids = await fetchExportableGenerations();
+      setGenerations(ids);
+      if (ids.length > 0 && !selectedGen) {
+        setSelectedGen(ids[0]);
+      }
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : '加载失败');
+    } finally {
+      setLoadingGens(false);
+    }
+  }
+
+  useEffect(() => {
+    loadGenerations();
+  }, []);
+
+  async function handleExport() {
+    if (!selectedGen) return;
+    setExporting(true);
+    setError('');
+    setExportResult(null);
+    try {
+      const result = await exportGeneration(selectedGen);
+      setExportResult(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '导出失败');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const formatSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
     <section className="panel export-panel">
-      <Archive size={36} className="export-icon" />
-      <h3>素材包导出</h3>
-      <p>生成 manifest.json 并打包 zip 素材包，后续 PR 接入。</p>
-      <button className="primary-button" type="button">
-        <Archive size={14} />
-        EXPORT ZIP
-      </button>
+      <div className="section-heading">
+        <h3>素材包导出</h3>
+        <span>{loadingGens ? 'LOADING' : `${generations.length} GENERATIONS`}</span>
+      </div>
+
+      {loadingGens && (
+        <div className="empty-state">
+          <Loader2 size={28} />
+          正在从素材仓库读取 generation 列表...
+        </div>
+      )}
+
+      {genError && !loadingGens && (
+        <div className="empty-state">
+          <p className="error-line">{genError}</p>
+          <button className="secondary-button" type="button" onClick={loadGenerations}>
+            <RefreshCw size={14} />
+            RETRY
+          </button>
+        </div>
+      )}
+
+      {!loadingGens && !genError && generations.length === 0 && (
+        <div className="empty-state">
+          <Package size={28} />
+          暂无素材记录。请先在生成页创建素材，然后返回导出。
+        </div>
+      )}
+
+      {!loadingGens && !genError && generations.length > 0 && (
+        <>
+          <div className="export-form">
+            <label>
+              选择 Generation
+              <select
+                value={selectedGen}
+                onChange={(e) => {
+                  setSelectedGen(e.target.value);
+                  setExportResult(null);
+                  setError('');
+                }}
+              >
+                {generations.map((genId) => (
+                  <option key={genId} value={genId}>
+                    {genId}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="button-row">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleExport}
+                disabled={exporting || !selectedGen}
+              >
+                {exporting ? (
+                  <>
+                    <Loader2 size={14} />
+                    EXPORTING
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} />
+                    EXPORT ZIP
+                  </>
+                )}
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={loadGenerations}
+                disabled={loadingGens}
+              >
+                <RefreshCw size={14} />
+                REFRESH
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="error-line">{error}</p>}
+
+          {exportResult && (
+            <div className="export-result">
+              <div className="export-result-icon">
+                <CheckCircle2 size={32} />
+              </div>
+              <div className="export-result-info">
+                <h4>导出成功</h4>
+                <p>
+                  <strong>{exportResult.zipFileName}</strong> 已下载
+                </p>
+                <div className="export-stats">
+                  <span>
+                    <FileJson size={12} />
+                    {exportResult.assetCount} 个素材
+                  </span>
+                  <span>
+                    <FileJson size={12} />
+                    manifest {formatSize(exportResult.manifestSize)}
+                  </span>
+                  <span>
+                    <Package size={12} />
+                    总计 {formatSize(exportResult.totalSize)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="export-hint">
+            <h4>导出内容说明</h4>
+            <p>
+              zip 包内含 <code>manifest.json</code> 元数据清单和按类型分目录的 PNG
+              素材文件。manifest 中包含素材名称、类型、风格、提示词、质量评分等信息，可直接交付给游戏引擎或后续管线使用。
+            </p>
+          </div>
+        </>
+      )}
     </section>
   );
 }
