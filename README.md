@@ -9,7 +9,7 @@ GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产
 - **存储**：JSON 文件数据库 + `storage/` + `runtime/` 目录
 - **图片处理**：纯标准库 PNG 解析（struct/zlib），无 Pillow 依赖
 - **导出**：`manifest.json` + zip（标准库 zipfile）
-- **生图**：Mock Provider 默认；可扩展 OpenAI / NovelAI / Stable Diffusion
+- **生图**：Mock / OpenAI DALL-E 3 / NovelAI Diffusion 3，无 Key 自动降级 Mock
 - **云存储**：Mock Cloud Provider 默认；可扩展七牛云 / AWS S3
 
 ## 核心流程
@@ -57,7 +57,7 @@ npm run build                    # 生产构建
 ### 运行测试
 
 ```bash
-# 后端（49 个测试）
+# 后端（60 个测试）
 cd backend && python -m pytest
 
 # 前端（17 个测试）
@@ -84,6 +84,25 @@ OPENAI_API_KEY=sk-...
 OPENAI_PROMPT_MODEL=gpt-5-mini
 ```
 
+### 接入真实生图 API（可选）
+
+在 **Image API 配置** 页面或 `.env` 中设置：
+
+```env
+# OpenAI DALL-E
+IMAGE_GEN_PROVIDER=openai
+IMAGE_GEN_API_KEY=sk-...
+IMAGE_GEN_MODEL=dall-e-3
+IMAGE_GEN_SIZE=1024x1024
+
+# 或 NovelAI
+IMAGE_GEN_PROVIDER=novelai
+NOVELAI_TOKEN=your-novelai-access-token
+IMAGE_GEN_MODEL=nai-diffusion-3
+```
+
+在素材生成页选择目标模型（GPT Image / NovelAI）后，系统自动调用对应的真实 API。无凭证时自动降级为 Mock Provider。
+
 ## API 端点
 
 | 方法 | 路径 | 说明 |
@@ -91,6 +110,7 @@ OPENAI_PROMPT_MODEL=gpt-5-mini
 | `GET` | `/api/health` | 健康检查 |
 | `POST` | `/api/prompts/compile` | 编译提示词 |
 | `GET/POST` | `/api/config/llm` | LLM 配置读写 |
+| `GET/PUT` | `/api/config/image` | 生图 API 配置读写（DALL-E / NovelAI） |
 | `POST` | `/api/assets/generate` | 生成素材 |
 | `GET` | `/api/assets?category=` | 素材库列表 |
 | `POST` | `/api/quality/inspect/{asset_id}` | 单素材质量检查 |
@@ -138,6 +158,8 @@ GameAssetForge/
 │   │   ├── routes/              # API 路由
 │   │   ├── services/            # 业务逻辑
 │   │   ├── providers/           # 抽象 Provider 层（图片/云存储/LLM）
+│   │   │   ├── gpt_image_provider.py  # OpenAI DALL-E 3/2
+│   │   │   └── novelai_provider.py    # NovelAI Diffusion 3
 │   │   ├── repositories/        # 数据访问层
 │   │   ├── prompt/              # Prompt Compiler 核心
 │   │   └── utils/               # PNG 工具等
@@ -151,6 +173,7 @@ GameAssetForge/
 │   │   ├── assetGeneration.js   # API 助手
 │   │   ├── generationRequest.js # 请求构建器
 │   │   ├── promptCompiler.js    # 提示词编译助手
+│   │   ├── imageConfig.js       # 生图配置助手
 │   │   └── llmConfig.js         # LLM 配置助手
 │   ├── package.json
 │   └── vite.config.js
@@ -182,4 +205,6 @@ GameAssetForge/
 - [x] manifest.json 可生成（含完整元数据和评分）
 - [x] zip 素材包可导出下载
 - [x] 云端上传或模拟上传状态可演示
+- [x] GPT Image (DALL-E) 和 NovelAI 真实生图接口可配置
+- [x] 前端 Image API 配置页可独立管理生图凭证
 - [x] README 包含启动说明、API 文档、原创功能说明

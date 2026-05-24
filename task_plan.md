@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 12 — MVP Complete
+PR 13 — NovelAI & GPT Image Providers
 
 ## Phases
 
@@ -212,6 +212,28 @@ PR 12 — MVP Complete
 - [x] Run backend tests (49 passed).
 - [x] Run frontend tests (17 passed).
 - [x] Run frontend production build.
+- **Status:** complete
+
+### Phase 27: PR 13 NovelAI & GPT Image Providers
+- [x] Add ImageRuntimeConfig to config.py (parallel to LlmRuntimeConfig).
+- [x] Add ImageConfigUpdate/ImageConfigResponse models to config_models.py.
+- [x] Add GET/PUT /api/config/image routes in config_routes.py.
+- [x] Implement GptImageProvider calling OpenAI DALL-E API.
+- [x] Implement NovelAIImageProvider calling NovelAI image gen API.
+- [x] Add negativePrompt to ImageGenerationRequest.
+- [x] Add _select_provider() routing to AssetGenerationService (with auto-fallback).
+- [x] Add 11 backend tests (5 GPT + 6 NovelAI).
+- [x] Create frontend/src/imageConfig.js with provider/model/size/quality options.
+- [x] Add "Image API 配置" nav tab and ImageConfigPage component.
+- [x] Add CSS styles for image config hint panels.
+- [x] Write PR13 description document.
+- [x] Update .env.example with image gen env vars.
+- **Status:** complete
+
+### Phase 28: PR 13 Verification
+- [x] Backend 60 tests passed (was 49).
+- [x] Frontend 17 tests passed.
+- [x] Frontend build succeeded.
 - **Status:** complete
 
 ## Key Questions
