@@ -4,6 +4,7 @@ import {
   Archive,
   Bot,
   CheckCircle2,
+  Cloud,
   Download,
   FileJson,
   Image,
@@ -16,6 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   XCircle,
 } from 'lucide-react';
 import {
@@ -26,6 +28,7 @@ import {
   fetchQualityReport,
   generateAssets,
   summarizeGeneratedAssets,
+  uploadGenerationToCloud,
 } from './assetGeneration.js';
 import { buildGenerationRequest, defaultGenerationForm } from './generationRequest.js';
 import {
@@ -1017,6 +1020,9 @@ function ExportPage() {
   const [error, setError] = useState('');
   const [exportResult, setExportResult] = useState(null);
   const [genError, setGenError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [uploadError, setUploadError] = useState('');
 
   async function loadGenerations() {
     setLoadingGens(true);
@@ -1050,6 +1056,21 @@ function ExportPage() {
       setError(err instanceof Error ? err.message : '导出失败');
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleCloudUpload() {
+    if (!selectedGen) return;
+    setUploading(true);
+    setUploadError('');
+    setUploadResult(null);
+    try {
+      const assets = await uploadGenerationToCloud(selectedGen);
+      setUploadResult(assets);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : '云端上传失败');
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -1167,6 +1188,66 @@ function ExportPage() {
                     <Package size={12} />
                     总计 {formatSize(exportResult.totalSize)}
                   </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 云端上传 ── */}
+          <div className="export-divider" />
+
+          <div className="export-form">
+            <label>
+              <Cloud size={14} />
+              云端上传（模拟）
+            </label>
+            <p className="cloud-hint">
+              将当前 generation 的所有素材上传到云端。未配置真实云存储时使用 Mock 模式，
+              返回 <code>cloud://mock/...</code> 格式的模拟 URL。
+            </p>
+            <div className="button-row">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleCloudUpload}
+                disabled={uploading || !selectedGen}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={14} />
+                    UPLOADING
+                  </>
+                ) : (
+                  <>
+                    <Upload size={14} />
+                    UPLOAD TO CLOUD
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {uploadError && <p className="error-line">{uploadError}</p>}
+
+          {uploadResult && (
+            <div className="export-result">
+              <div className="export-result-icon">
+                <Cloud size={32} />
+              </div>
+              <div className="export-result-info">
+                <h4>上传成功</h4>
+                <p>
+                  <strong>{uploadResult.length}</strong> 个素材已上传至云端
+                </p>
+                <div className="export-stats">
+                  {uploadResult.slice(0, 5).map((asset) => (
+                    <span key={asset.id} title={asset.cloudUrl}>
+                      {asset.assetName}: {asset.cloudUrl}
+                    </span>
+                  ))}
+                  {uploadResult.length > 5 && (
+                    <span>...另有 {uploadResult.length - 5} 个</span>
+                  )}
                 </div>
               </div>
             </div>
