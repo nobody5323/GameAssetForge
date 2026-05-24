@@ -1133,6 +1133,29 @@ textarea {
   font-size: 12px;
 }
 
+.export-divider {
+  height: 2px;
+  margin: 8px 0;
+  border: none;
+  border-top: 2px dashed var(--border);
+}
+
+.cloud-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cloud-hint code {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+  color: var(--accent-yellow);
+  font-family: var(--body-font);
+  font-size: 12px;
+}
+
 /* ── Status Badge ── */
 
 .status-badge {

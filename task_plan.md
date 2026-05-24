@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 11
+PR 12 — MVP Complete
 
 ## Phases
 
@@ -188,6 +188,29 @@ PR 11
 ### Phase 24: PR 11 Verification
 - [x] Run backend tests (42 passed).
 - [x] Run frontend tests (16 passed).
+- [x] Run frontend production build.
+- **Status:** complete
+
+### Phase 25: PR 12 Cloud Simulation & Final Docs
+- [x] Create `feature/pr-12-cloud-and-demo-docs` from latest `origin/main`.
+- [x] Merge PR11 into PR12 for complete codebase.
+- [x] Add `CloudProvider` abstract interface and `CloudUploadResult`.
+- [x] Add `MockCloudProvider` with `cloud://mock/...` simulated URLs.
+- [x] Add `CloudService` to orchestrate upload and update AssetRecord.cloudUrl.
+- [x] Add `POST /api/cloud/upload/{asset_id}` and `POST /api/cloud/upload-generation/{generation_id}`.
+- [x] Add `update_asset()` and `find_asset()` to AssetRepository.
+- [x] Register cloud router in `main.py`.
+- [x] Add 7 backend tests covering upload, cloudUrl, API, 404.
+- [x] Add `uploadAssetToCloud()` and `uploadGenerationToCloud()` frontend helpers.
+- [x] Add cloud upload section to ExportPage with upload button and result display.
+- [x] Rewrite README.md: full tech stack, API table, Quick Start, project structure, acceptance checklist.
+- [x] Update DEMO_SCRIPT.md: 6-segment walkthrough.
+- [x] Add PR 12 description document.
+- **Status:** complete
+
+### Phase 26: PR 12 Verification
+- [x] Run backend tests (49 passed).
+- [x] Run frontend tests (17 passed).
 - [x] Run frontend production build.
 - **Status:** complete
 

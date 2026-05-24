@@ -98,3 +98,30 @@ export async function exportGeneration(generationId) {
     totalSize: parseInt(response.headers.get('X-Total-Size') || '0', 10),
   };
 }
+
+export async function uploadAssetToCloud(assetId) {
+  const response = await fetch(`${API_BASE_URL}/cloud/upload/${encodeURIComponent(assetId)}`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Cloud upload failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function uploadGenerationToCloud(generationId) {
+  const response = await fetch(
+    `${API_BASE_URL}/cloud/upload-generation/${encodeURIComponent(generationId)}`,
+    { method: 'POST' },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Cloud upload failed with ${response.status}`);
+  }
+
+  return response.json();
+}

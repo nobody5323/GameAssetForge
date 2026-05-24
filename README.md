@@ -1,150 +1,185 @@
 # GameAsset Forge
 
-GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产与交付平台。项目目标不是做一个简单的 AI 生图页面，而是搭建一条从自然语言需求到可用游戏素材包的生产流水线。
+GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产与交付平台。系统将自然语言需求转换为结构化生图提示词，通过 Provider 层生成素材，再进行质量检查、素材库管理、云端上传，最后导出 `manifest.json` + zip 素材包。
 
-用户输入游戏设定后，系统会将需求转换为结构化生图提示词，通过 Provider 层生成素材文件，再进行素材质量检查、素材库管理、`manifest.json` 生成、zip 素材包导出，并支持七牛云或本地模拟上传交付。
+## 技术栈
 
-## 项目定位
-
-本项目选择方向：**2D 游戏素材生成**。
-
-核心目标：
-
-- 生成一组结构化游戏素材，而不是单张图片；
-- 提供素材管理、质检、上传、分发、导出闭环；
-- 通过 Prompt Compiler、Asset Quality Inspector、Cloud Asset Hub 体现工程能力；
-- 默认支持 Mock 模式，保证没有 API Key 也能演示完整流程。
-
-## 技术栈规划
-
-- 前端：React + Vite
-- 后端：Python + FastAPI
-- 存储：本地 JSON 文件 + `storage/` 目录
-- 图片处理：Pillow
-- 导出：`manifest.json` + zip 素材包
-- 生图：默认 Mock Provider，后续可扩展 OpenAI / FLUX / Stable Diffusion 等 Provider
-- 云端交付：七牛云；未配置密钥时使用本地模拟上传状态
+- **前端**：React 19 + Vite 6
+- **后端**：Python 3.13 + FastAPI
+- **存储**：JSON 文件数据库 + `storage/` + `runtime/` 目录
+- **图片处理**：纯标准库 PNG 解析（struct/zlib），无 Pillow 依赖
+- **导出**：`manifest.json` + zip（标准库 zipfile）
+- **生图**：Mock Provider 默认；可扩展 OpenAI / NovelAI / Stable Diffusion
+- **云存储**：Mock Cloud Provider 默认；可扩展七牛云 / AWS S3
 
 ## 核心流程
 
 ```text
 用户输入需求
-↓
-Prompt Compiler 生成结构化提示词
-↓
-Image Provider 生成素材
-↓
-Asset Quality Inspector 质量检查
-↓
-素材分类入库
-↓
-七牛云或模拟上传
-↓
-导出 zip 素材包与 manifest.json
+    ↓
+Prompt Compiler 编译结构化提示词（支持 normal / professional 模式）
+    ↓
+Image Provider 生成 PNG 素材（Mock / GPT / NovelAI）
+    ↓
+Asset Quality Inspector 质量检查（7 项扣分制，参考 T2I-CompBench）
+    ↓
+素材分类入库（按 character/enemy/item/tileset/ui/background）
+    ↓
+云端上传（模拟或真实云存储，设置 cloudUrl）
+    ↓
+导出 manifest.json + zip 素材包
 ```
 
-也可以概括为：
+## 快速开始
 
-```text
-Input -> Prompt Compiler -> Image Provider -> Quality Inspector -> Cloud Asset Hub -> Export
-```
-
-## 当前阶段
-
-当前仓库处于 **PR 1：项目初始化与基础文档** 阶段。
-
-本阶段已经完成：
-
-- 创建基础项目目录；
-- 添加环境变量示例；
-- 添加 `.gitignore`；
-- 添加 PR 拆分计划；
-- 添加 Demo 视频脚本；
-- 保留工程设计文档；
-- 明确后续 12 个 PR 的实现路线。
-
-运行时代码会在后续 PR 中逐步实现，具体见 [docs/PR_PLAN.md](docs/PR_PLAN.md)。
-
-## 本地启动规划
-
-后端启动方式：
+### 后端
 
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-前端启动方式：
+API 文档自动生成：http://127.0.0.1:8000/docs
+
+### 前端
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                      # 开发模式 http://127.0.0.1:5173
+npm run build                    # 生产构建
 ```
 
-> 说明：当前 PR 1 只提交项目骨架和文档，以上命令会在后续前后端代码落地后可用。
+### 运行测试
 
-## Mock 模式
+```bash
+# 后端（49 个测试）
+cd backend && python -m pytest
 
-Mock 模式默认开启：
+# 前端（17 个测试）
+cd frontend && npx vitest run
+```
+
+## Mock 模式（默认，无需 API Key）
 
 ```env
 IMAGE_PROVIDER=mock
+CLOUD_PROVIDER=mock
 ```
 
-Mock Provider 不调用真实生图 API，而是使用本地预置或自动生成的演示素材，保证评审环境中没有 API Key 时也可以跑通完整流程：
+无 API Key 时自动使用 Mock Provider，完整流程可演示：
+`Prompt 编译 → Mock 生成 → 质量检查 → 素材库 → 云端模拟上传 → manifest → zip 导出`
 
-```text
-Prompt 编译 -> Mock 生成素材 -> 质量检查 -> 素材库展示 -> 上传状态 -> manifest -> zip 导出
+### 接入真实 LLM（可选）
+
+在 LLM 配置页面或 `.env` 中设置：
+
+```env
+PROMPT_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_PROMPT_MODEL=gpt-5-mini
 ```
 
-## API 规划
+## API 端点
 
-后端计划提供以下接口：
-
-- `GET /api/health`
-- `POST /api/assets/generate`
-- `GET /api/assets`
-- `GET /api/assets/{asset_id}/quality`
-- `POST /api/assets/{asset_id}/upload`
-- `POST /api/exports/{generation_id}`
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/health` | 健康检查 |
+| `POST` | `/api/prompts/compile` | 编译提示词 |
+| `GET/POST` | `/api/config/llm` | LLM 配置读写 |
+| `POST` | `/api/assets/generate` | 生成素材 |
+| `GET` | `/api/assets?category=` | 素材库列表 |
+| `POST` | `/api/quality/inspect/{asset_id}` | 单素材质量检查 |
+| `GET` | `/api/quality/report/{generation_id}` | Generation 质量报告 |
+| `POST` | `/api/cloud/upload/{asset_id}` | 单素材云端上传 |
+| `POST` | `/api/cloud/upload-generation/{generation_id}` | 批量云端上传 |
+| `GET` | `/api/exports` | 可导出 Generation 列表 |
+| `POST` | `/api/exports/{generation_id}` | 导出 zip 下载 |
 
 ## 原创工程亮点
 
-1. **Prompt Compiler**
+### 1. Prompt Compiler
 
-   将用户自然语言需求拆分为游戏类型、主题、风格、素材类型、技术约束和负面约束，再编译成适合 2D 游戏素材生成的结构化提示词。
+将用户自然语言需求拆分为游戏类型、主题、风格、素材类型，编译成适合不同模型（GPT Image / NovelAI / Mock Seed）的结构化提示词。
+- normal 模式：快速生成紧凑提示词
+- professional 模式：三个方向（production_safe / style_exploration / high_detail）探索候选
+- 自动规则降级：无 LLM 密钥时使用规则引擎生成
 
-2. **Asset Quality Inspector**
+### 2. Asset Quality Inspector（扣分制）
 
-   从图片格式、尺寸、命名规范、分类目录、Prompt 记录、manifest 状态、上传状态等维度检查素材是否可用，并给出 0-100 分质量评分。
+参考 T2I-CompBench（属性绑定/对象关系）、GenEval（对象存在/计数/颜色/位置）、Intel CGVQM（游戏画面质量度量）设计 7 项扣分检查：
+1. PNG 合规（致命项）— 非 PNG 直接 0 分
+2. 尺寸规格（30分）— 分级扣分 + 2的幂 + 16对齐 + 纯色检测
+3. 命名规范（20分）— snake_case / 无特殊字符
+4. 目录分类（20分）— 类型目录结构
+5. Prompt 质量（25分）— 长度分级 + 风格关键词 + 名称匹配
+6. 元数据完整（15分）— ID/provider/版本号
+7. 交付就绪（20分）— cloudUrl / 非 mock
 
-3. **Cloud Asset Hub**
+满分 100，及格线 60。
 
-   将素材上传、云端访问 URL、CDN 预览链接、zip 素材包和生成记录统一管理，使素材能够被预览、分发和交付。
+### 3. Cloud Asset Hub
+
+Provider 模式的云端上传层，Mock 模式下返回 `cloud://mock/...` 格式模拟 URL。素材上传后 cloudUrl 被持久化到仓库，质量检查可验证交付就绪状态。预留七牛云 / AWS S3 Provider 扩展接口。
+
+## 项目结构
+
+```
+GameAssetForge/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI 入口
+│   │   ├── config.py            # 运行时配置
+│   │   ├── models/              # Pydantic 数据模型
+│   │   ├── routes/              # API 路由
+│   │   ├── services/            # 业务逻辑
+│   │   ├── providers/           # 抽象 Provider 层（图片/云存储/LLM）
+│   │   ├── repositories/        # 数据访问层
+│   │   ├── prompt/              # Prompt Compiler 核心
+│   │   └── utils/               # PNG 工具等
+│   ├── tests/                   # pytest 测试
+│   ├── runtime/                 # 运行时生成文件
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx              # 主应用 + 所有页面组件
+│   │   ├── styles.css           # 像素风格全局样式
+│   │   ├── assetGeneration.js   # API 助手
+│   │   ├── generationRequest.js # 请求构建器
+│   │   ├── promptCompiler.js    # 提示词编译助手
+│   │   └── llmConfig.js         # LLM 配置助手
+│   ├── package.json
+│   └── vite.config.js
+├── docs/
+│   ├── PR_PLAN.md               # 12-PR 规划
+│   ├── DEMO_SCRIPT.md           # Demo 脚本
+│   ├── PROJECT_ENGINEERING.md   # 工程设计文档
+│   └── pr-descriptions/         # 各 PR 详细描述
+├── storage/                     # 静态度量（种子素材）
+├── .env.example
+└── README.md
+```
 
 ## 文档索引
 
 - PR 计划：[docs/PR_PLAN.md](docs/PR_PLAN.md)
-- PR 1 描述：[docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md](docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md)
 - Demo 脚本：[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
-- 工程说明：[docs/PROJECT_ENGINEERING.md](docs/PROJECT_ENGINEERING.md)
-- 原始设计文档：`GameAssetForge工程设计文档(1) (1).md`
+- 工程设计：[docs/PROJECT_ENGINEERING.md](docs/PROJECT_ENGINEERING.md)
+- PR1 描述：[docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md](docs/pr-descriptions/PR_01_PROJECT_BOOTSTRAP.md)
 
 ## 验收清单
 
-- [ ] Mock 模式可在无 API Key 环境运行；
-- [ ] Prompt Compiler 可生成结构化提示词；
-- [ ] Mock Provider 可生成本地素材；
-- [ ] 素材生成流程可演示；
-- [ ] 素材库可分类展示；
-- [ ] 质量评分可查看；
-- [ ] manifest.json 可生成；
-- [ ] zip 素材包可导出；
-- [ ] 七牛云上传或模拟上传状态可演示；
-- [ ] README 包含启动说明、依赖说明、原创功能说明；
-- [ ] Demo 视频链接已补充；
-- [ ] 项目截图已补充。
+- [x] Mock 模式可在无 API Key 环境运行
+- [x] Prompt Compiler 可生成结构化提示词（normal + professional）
+- [x] Mock Provider 可生成本地 PNG 素材
+- [x] 素材生成流程可演示（前端 → 后端 → Provider → 入库）
+- [x] 素材库可按 category 分类展示（含缩略图）
+- [x] 质量评分可查看（扣分制，0-100，每项检查详情报）
+- [x] manifest.json 可生成（含完整元数据和评分）
+- [x] zip 素材包可导出下载
+- [x] 云端上传或模拟上传状态可演示
+- [x] README 包含启动说明、API 文档、原创功能说明
