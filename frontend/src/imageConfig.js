@@ -40,6 +40,8 @@ export const defaultImageConfigForm = {
   imageQuality: 'standard',
   apiKey: '',
   clearApiKey: false,
+  proxyUrl: '',
+  clearProxy: false,
 };
 
 export function buildImageConfigPayload(form) {
@@ -51,6 +53,8 @@ export function buildImageConfigPayload(form) {
     imageQuality: form.imageQuality || 'standard',
     apiKey: form.apiKey.trim() || null,
     clearApiKey: form.clearApiKey,
+    proxyUrl: form.proxyUrl.trim() || null,
+    clearProxy: form.clearProxy,
   };
 }
 
@@ -64,6 +68,8 @@ export function applyImageConfigResponse(response) {
     apiKey: '',
     clearApiKey: false,
     hasApiKey: response.hasApiKey,
+    proxyUrl: response.proxyUrl || '',
+    clearProxy: false,
   };
 }
 

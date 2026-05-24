@@ -34,6 +34,8 @@ class ImageConfigUpdate(BaseModel):
     imageQuality: str = "standard"
     apiKey: str | None = None
     clearApiKey: bool = False
+    proxyUrl: str | None = None
+    clearProxy: bool = False
 
 
 class ImageConfigResponse(BaseModel):
@@ -43,3 +45,4 @@ class ImageConfigResponse(BaseModel):
     imageSize: str
     imageQuality: str
     hasApiKey: bool
+    proxyUrl: str | None = None

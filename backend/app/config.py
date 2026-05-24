@@ -94,6 +94,7 @@ class ImageRuntimeConfig:
     api_key: str = ""
     # NovelAI-specific token (stored separately but surfaced via the same config)
     novelai_token: str = ""
+    proxy_url: str = ""
 
     @classmethod
     def load(cls) -> "ImageRuntimeConfig":
@@ -105,6 +106,7 @@ class ImageRuntimeConfig:
             image_quality=os.getenv("IMAGE_GEN_QUALITY", "standard"),
             api_key=os.getenv("IMAGE_GEN_API_KEY", ""),
             novelai_token=os.getenv("NOVELAI_TOKEN", ""),
+            proxy_url=os.getenv("IMAGE_GEN_PROXY", ""),
         )
         config.load_local()
         return config
@@ -125,6 +127,10 @@ class ImageRuntimeConfig:
                 self.novelai_token = payload.apiKey.strip()
             else:
                 self.api_key = payload.apiKey.strip()
+        if payload.clearProxy:
+            self.proxy_url = ""
+        elif payload.proxyUrl is not None:
+            self.proxy_url = payload.proxyUrl.strip()
         self.save_local()
 
     def load_local(self) -> None:
@@ -138,6 +144,7 @@ class ImageRuntimeConfig:
         self.image_quality = data.get("imageQuality", self.image_quality)
         self.api_key = data.get("apiKey", self.api_key)
         self.novelai_token = data.get("novelaiToken", self.novelai_token)
+        self.proxy_url = data.get("proxyUrl", self.proxy_url)
 
     def save_local(self) -> None:
         IMAGE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -151,6 +158,7 @@ class ImageRuntimeConfig:
                     "imageQuality": self.image_quality,
                     "apiKey": self.api_key,
                     "novelaiToken": self.novelai_token,
+                    "proxyUrl": self.proxy_url,
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -164,6 +172,13 @@ class ImageRuntimeConfig:
             return bool(self.novelai_token)
         return bool(self.api_key)
 
+    def get_client_kwargs(self) -> dict:
+        """Build httpx.Client keyword arguments including proxy."""
+        kwargs = {"timeout": 120, "verify": True}
+        if self.proxy_url:
+            kwargs["proxy"] = self.proxy_url
+        return kwargs
+
     def public_response(self) -> ImageConfigResponse:
         return ImageConfigResponse(
             provider=self.provider,
@@ -172,6 +187,7 @@ class ImageRuntimeConfig:
             imageSize=self.image_size,
             imageQuality=self.image_quality,
             hasApiKey=bool(self.novelai_token or self.api_key),
+            proxyUrl=self.proxy_url or None,
         )
 
 

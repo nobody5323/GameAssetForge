@@ -62,7 +62,7 @@ class GptImageProvider(ImageProvider):
             "response_format": "b64_json",
         }
 
-        with httpx.Client(timeout=120) as client:
+        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
             response = client.post(
                 f"{image_runtime_config.base_url}/images/generations",
                 headers={

@@ -80,7 +80,7 @@ class NovelAIImageProvider(ImageProvider):
             payload["parameters"]["negative_prompt"] = request.negativePrompt
 
         endpoint = _novelai_endpoint()
-        with httpx.Client(timeout=120) as client:
+        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
             response = client.post(
                 f"{endpoint}/ai/generate-image",
                 headers={

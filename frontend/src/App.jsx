@@ -877,6 +877,25 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
           清空当前 API Key / Token
         </label>
 
+        <label>
+          HTTP 代理（可选，国内访问 NovelAI 需配置）
+          <input
+            value={form.proxyUrl}
+            onChange={(event) => updateConfig('proxyUrl', event.target.value)}
+            placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+          />
+        </label>
+        {form.proxyUrl && (
+          <label className="inline-checkbox">
+            <input
+              type="checkbox"
+              checked={form.clearProxy}
+              onChange={(event) => updateConfig('clearProxy', event.target.checked)}
+            />
+            清空代理设置
+          </label>
+        )}
+
         <div className="image-config-hint">
           <h4>
             <Paintbrush size={12} />
