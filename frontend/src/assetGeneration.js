@@ -18,6 +18,21 @@ export async function generateAssets(request) {
   return response.json();
 }
 
+export async function fetchAssets(category) {
+  const url = category
+    ? `${API_BASE_URL}/assets?category=${encodeURIComponent(category)}`
+    : `${API_BASE_URL}/assets`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Asset list failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export function buildAssetPreviewUrl(localPath) {
   if (!localPath) {
     return '';

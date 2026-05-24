@@ -674,19 +674,27 @@ textarea {
   border-bottom: 2px solid var(--border);
 }
 
+.asset-thumb img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
 .asset-card-info {
   padding: 10px 12px;
+  display: grid;
+  gap: 4px;
 }
 
 .asset-card-info h4 {
-  margin: 0 0 4px;
+  margin: 0;
   font-family: var(--pixel-font);
   font-size: 8px;
   color: var(--text-bright);
 }
 
 .asset-card-info p {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 12px;
   color: var(--text-dim);
 }
@@ -695,6 +703,75 @@ textarea {
   font-family: var(--pixel-font);
   font-size: 7px;
   color: var(--accent-yellow);
+}
+
+.asset-card-info .asset-gen-id {
+  font-size: 10px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-card-info .asset-provider {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--accent-cyan);
+  justify-self: start;
+}
+
+/* ── Library Page ── */
+
+.library-panel {
+  max-width: 1100px;
+}
+
+.library-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  border: 2px solid var(--border);
+  padding: 0 10px;
+  color: var(--text-dim);
+  background: var(--bg-main);
+  font-family: var(--pixel-font);
+  font-size: 7px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.filter-chip:hover {
+  border-color: var(--border-hi);
+  color: var(--text);
+}
+
+.filter-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(0, 228, 54, 0.3);
+}
+
+.filter-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  font-size: 6px;
+  color: var(--accent-yellow);
+  background: var(--bg-deep);
 }
 
 /* ── Quality Page ── */
