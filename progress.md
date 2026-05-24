@@ -277,6 +277,45 @@
 | GET /api/assets | `curl http://127.0.0.1:8000/api/assets` | Returns JSON array of assets | Returns all generated assets | Pass |
 | GET /api/assets?category=character | Filter by character type | Only character assets returned | Filtered correctly | Pass |
 
+### Phase 19: PR 9 Quality Inspector
+- **Status:** complete
+- Actions taken:
+  - Created `feature/pr-09-quality-inspector` from latest `origin/main`.
+  - Added `QualityCheck`, `AssetQualityReport`, `GenerationQualityReport` Pydantic models.
+  - Implemented `QualityService` with 7 independent checks:
+    1. 文件格式 (15分) — PNG 签名验证
+    2. 图片尺寸 (15分) — IHDR chunk 解析，范围 16–4096
+    3. 命名规范 (10分) — snake_case：无空格/大写/特殊字符
+    4. 分类目录 (15分) — 路径包含 `/{assetType}/` 段
+    5. Prompt 记录 (15分) — finalPrompt ≥ 20 字符
+    6. Manifest 就绪 (15分) — 必填字段完整
+    7. 云端就绪 (15分) — cloudUrl 已设置
+  - Built PNG IHDR parser using standard library `struct` (no Pillow dependency).
+  - Added `POST /api/quality/inspect/{asset_id}` — single asset inspection.
+  - Added `GET /api/quality/report/{generation_id}` — generation-level summary with passCount/failCount.
+  - Registered quality router in `main.py`.
+  - Added 11 tests: PNG dimension parsing, all 7 checks scoring, generation aggregation, API 404, bad naming, missing file.
+  - Typical mock asset score: 85/100 (cloudUrl not yet set, PR12 will enable).
+- Files created/modified:
+  - `backend/app/models/quality_models.py`
+  - `backend/app/services/quality_service.py`
+  - `backend/app/routes/quality_routes.py`
+  - `backend/app/main.py`
+  - `backend/tests/test_quality_inspector.py`
+  - `docs/pr-descriptions/PR_09_QUALITY_INSPECTOR.md`
+  - `task_plan.md`
+  - `progress.md`
+
+## PR9 Test Results
+| Test | Input | Expected | Actual | Status |
+|------|-------|----------|--------|--------|
+| Backend full suite | `python -m pytest` in `backend` | All 30 tests pass | 30 passed | Pass |
+| Quality inspect API | `POST /api/quality/inspect/{id}` | 7 checks, 85/100 score | 7 checks returned, score=85 | Pass |
+| Quality report API | `GET /api/quality/report/{genId}` | Aggregated with passCount/failCount | passCount=1, failCount=0, overallScore=85 | Pass |
+| Unknown asset 404 | `POST /api/quality/inspect/nonexistent` | 404 with message | 404 "未找到素材" | Pass |
+| Bad naming detection | asset name "Bad Name!" | naming check fails | naming score < 10, not passed | Pass |
+| Missing file detection | Delete PNG then inspect | format check fails | score=0, "不存在" in message | Pass |
+
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
