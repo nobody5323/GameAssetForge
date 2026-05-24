@@ -11,6 +11,7 @@ GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产
 - **导出**：`manifest.json` + zip（标准库 zipfile）
 - **生图**：Mock / OpenAI（GPT Image / DALL-E），无 Key 自动降级 Mock
 - **云存储**：Mock Cloud Provider 默认；可扩展七牛云 / AWS S3
+<img width="1672" height="941" alt="已生成图像 1" src="https://github.com/user-attachments/assets/89d125ee-d03d-48aa-8245-4f42148091bf" />
 
 ## 核心流程
 
