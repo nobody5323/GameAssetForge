@@ -276,8 +276,13 @@ CN_TO_EN_GAME_DICT: dict[str, str] = {
     "美少女": "beautiful girl",
     "少女": "girl",
     "猫耳": "cat ears",
+    "貓耳": "cat ears",
     "白发": "white hair",
+    "白髮": "white hair",
     "游戏": "game",
+    "遊戲": "game",
+    "闯关": "platformer",
+    "闖關": "platformer",
 
     # ── Quality / Technical tags ────────────────────────────────────
     "高品质": "best quality",
