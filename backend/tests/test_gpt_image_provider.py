@@ -31,15 +31,7 @@ DUMMY_CHAT_RESPONSE = {
         {
             "message": {
                 "role": "assistant",
-                "content": None,
-                "annotations": [
-                    {
-                        "type": "image",
-                        "image": {
-                            "b64_json": DUMMY_PNG_BASE64,
-                        },
-                    }
-                ],
+                "content": "![image](https://oss.filenest.top/uploads/dummy-test-image.png)\n\n",
             }
         }
     ]
@@ -252,16 +244,17 @@ def test_gpt_image2_generates_image(monkeypatch):
     provider = GptImageProvider()
 
     with patch.object(httpx.Client, "post", side_effect=_mock_chat_post):
-        result = provider.generate(
-            ImageGenerationRequest(
-                generationId="gen-gpt2-001",
-                assetName="knight",
-                assetType="character",
-                style="fantasy",
-                theme="medieval",
-                finalPrompt="A brave knight in shining armor.",
+        with patch.object(provider, "_download_image", return_value=base64.b64decode(DUMMY_PNG_BASE64)):
+            result = provider.generate(
+                ImageGenerationRequest(
+                    generationId="gen-gpt2-001",
+                    assetName="knight",
+                    assetType="character",
+                    style="fantasy",
+                    theme="medieval",
+                    finalPrompt="A brave knight in shining armor.",
+                )
             )
-        )
 
     assert result.provider == "gpt_image"
     assert result.assetName == "knight"
