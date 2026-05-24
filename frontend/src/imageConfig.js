@@ -1,8 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
 
 export const imageGenProviders = [
-  { id: 'openai', label: 'OpenAI DALL-E' },
-  { id: 'novelai', label: 'NovelAI Diffusion' },
+  { id: 'openai', label: 'OpenAI' },
 ];
 
 export const imageGenSizes = [
@@ -19,17 +18,9 @@ export const imageGenQualities = [
 ];
 
 export const openaiImageModels = [
+  { id: 'gpt-image-2', label: 'GPT Image 2' },
   { id: 'dall-e-3', label: 'DALL-E 3' },
   { id: 'dall-e-2', label: 'DALL-E 2' },
-];
-
-export const novelaiImageModels = [
-  { id: 'nai-diffusion-4-5-full', label: 'NAI Diffusion V4.5 Full' },
-  { id: 'nai-diffusion-4-5-curated', label: 'NAI Diffusion V4.5 Curated' },
-  { id: 'nai-diffusion-4-full', label: 'NAI Diffusion V4 Full' },
-  { id: 'nai-diffusion-4-curated-preview', label: 'NAI Diffusion V4 Curated' },
-  { id: 'nai-diffusion-3', label: 'NAI Diffusion 3' },
-  { id: 'nai-diffusion-furry-3', label: 'NAI Diffusion Furry 3' },
 ];
 
 export const defaultImageConfigForm = {

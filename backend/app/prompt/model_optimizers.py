@@ -10,18 +10,6 @@ DIRECTION_NOTES: dict[PromptDirection, str] = {
 }
 
 
-def _subject_anchor(asset_type: str) -> str:
-    """Danbooru subject anchor tag — essential for NovelAI character prompting."""
-    return {
-        "character": "1girl, solo",
-        "enemy": "monster, solo",
-        "item": "item, solo, simple background",
-        "tileset": "scenery, no humans",
-        "ui": "ui, simple background",
-        "background": "scenery, no humans",
-    }.get(asset_type, "solo")
-
-
 class PromptOptimizer:
     def optimize(
         self,
@@ -34,8 +22,6 @@ class PromptOptimizer:
     ) -> tuple[str, str | None]:
         if target_model == "mock_seed":
             return self._mock_seed_prompt(asset, tags, direction, project_context)
-        if target_model == "novelai":
-            return self._novelai_prompt(asset, tags, direction, project_context)
         return self._gpt_image_prompt(asset, tags, direction, project_context)
 
     def _mock_seed_prompt(
@@ -103,56 +89,3 @@ class PromptOptimizer:
             ]
         )
         return sanitize_prompt(prompt), None
-
-    def _novelai_prompt(
-        self,
-        asset: PromptAssetRequest,
-        tags: dict[str, list[str]],
-        direction: PromptDirection,
-        project_context: str,
-    ) -> tuple[str, str]:
-        subject_anchor = _subject_anchor(asset.type)
-        appearance = [
-            translate_chinese_text(asset.name.replace("_", " ")),
-            translate_chinese_text(asset.description),
-        ]
-
-        if direction == "quick_start":
-            positive_tags = [
-                "masterpiece",
-                "best quality",
-                subject_anchor,
-                *filter(None, appearance),
-                *tags["style"],
-                *tags["theme"],
-            ]
-            negative_prompt = ", ".join([
-                "lowres", "bad anatomy", "bad hands", "worst quality",
-                "low quality", "normal quality", "jpeg artifacts",
-                "signature", "watermark", "blurry",
-            ])
-            return sanitize_prompt(", ".join(filter(None, positive_tags))), negative_prompt
-
-        # Professional: full Danbooru tag structure
-        # quality → subject → appearance → style → theme → setting → mood
-        positive_tags = [
-            "masterpiece",
-            "best quality",
-            "amazing quality",
-            "very aesthetic",
-            "absurdres",
-            "rating:general",
-            subject_anchor,
-            *filter(None, appearance),
-            *tags["style"],
-            *tags["theme"],
-            *tags["environment"],
-            *tags["mood"],
-        ]
-        negative_prompt = ", ".join([
-            "lowres", "bad anatomy", "bad hands", "text", "error",
-            "missing fingers", "extra digit", "fewer digits", "cropped",
-            "worst quality", "low quality", "normal quality", "jpeg artifacts",
-            "signature", "watermark", "username", "blurry",
-        ])
-        return sanitize_prompt(", ".join(filter(None, positive_tags))), negative_prompt

@@ -11,7 +11,6 @@ from app.prompt.prompt_compiler import PromptCompiler
 from app.providers.gpt_image_provider import GptImageProvider
 from app.providers.image_provider import ImageProvider
 from app.providers.mock_image_provider import MockImageProvider
-from app.providers.novelai_provider import NovelAIImageProvider
 from app.repositories.asset_repository import AssetRepository
 
 PROMPT_VERSION = "prompt-v1"
@@ -22,7 +21,6 @@ class AssetGenerationService:
         self.prompt_compiler = PromptCompiler()
         self.mock_provider = MockImageProvider()
         self.gpt_provider = GptImageProvider()
-        self.novelai_provider = NovelAIImageProvider()
         self.asset_repository = AssetRepository()
 
     def _select_provider(self, target_model: str) -> ImageProvider:
@@ -34,10 +32,6 @@ class AssetGenerationService:
         if target_model == "gpt_image":
             if self.gpt_provider.is_available():
                 return self.gpt_provider
-            return self.mock_provider
-        if target_model == "novelai":
-            if self.novelai_provider.is_available():
-                return self.novelai_provider
             return self.mock_provider
         return self.mock_provider
 

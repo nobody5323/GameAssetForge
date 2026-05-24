@@ -40,7 +40,6 @@ import {
   imageGenProviders,
   imageGenQualities,
   imageGenSizes,
-  novelaiImageModels,
   openaiImageModels,
   saveImageConfig,
 } from './imageConfig.js';
@@ -492,6 +491,8 @@ function GeneratePage({
 }
 
 function GeneratedAssetsPanel({ state }) {
+  const [lightbox, setLightbox] = useState(null);
+
   return (
     <section className="panel generated-results">
       <div className="section-heading">
@@ -506,7 +507,10 @@ function GeneratedAssetsPanel({ state }) {
         <div className="generated-grid">
           {state.response.assets.map((asset) => (
             <article className="generated-card" key={asset.id}>
-              <div className="generated-thumb">
+              <div
+                className="generated-thumb"
+                onClick={() => setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider, prompt: asset.finalPrompt })}
+              >
                 <img src={buildAssetPreviewUrl(asset.localPath)} alt={`${asset.assetName} preview`} />
               </div>
               <div className="generated-card-head">
@@ -521,6 +525,19 @@ function GeneratedAssetsPanel({ state }) {
               <pre>{asset.finalPrompt}</pre>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>
@@ -763,22 +780,17 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
   function updateConfig(field, value) {
     setForm((current) => {
       const next = { ...current, [field]: value };
-      // Auto-switch model list when provider changes
+      // Auto-switch model when provider changes
       if (field === 'provider') {
-        if (value === 'novelai') {
-          next.imageModel = 'nai-diffusion-4-5-full';
-          next.baseUrl = 'https://image.novelai.net';
-        } else {
-          next.imageModel = 'dall-e-3';
-          next.baseUrl = 'https://api.openai.com/v1';
-        }
+        next.imageModel = 'gpt-image-2';
+        next.baseUrl = 'https://api.openai.com/v1';
       }
       return next;
     });
   }
 
-  const isNovelAI = form.provider === 'novelai';
-  const modelOptions = isNovelAI ? novelaiImageModels : openaiImageModels;
+  const isDallE = form.imageModel.startsWith('dall-e');
+  const modelOptions = openaiImageModels;
 
   return (
     <section className="panel config-panel">
@@ -806,7 +818,7 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
             <input
               value={form.baseUrl}
               onChange={(event) => updateConfig('baseUrl', event.target.value)}
-              placeholder={isNovelAI ? 'https://image.novelai.net' : 'https://api.openai.com/v1'}
+              placeholder="https://api.openai.com/v1"
             />
           </label>
           <label>
@@ -835,7 +847,7 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
               ))}
             </select>
           </label>
-          {!isNovelAI && (
+          {isDallE && (
             <label>
               画质
               <select
@@ -853,17 +865,15 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
         </div>
 
         <label>
-          {isNovelAI ? 'NovelAI Token' : 'OpenAI API Key'}
+          OpenAI API Key
           <input
             type="password"
             value={form.apiKey}
             onChange={(event) => updateConfig('apiKey', event.target.value)}
             placeholder={
-              isNovelAI
-                ? '输入 NovelAI access token...'
-                : form.hasApiKey
-                  ? '后端已有 Key，留空表示不修改'
-                  : '输入 sk-...'
+              form.hasApiKey
+                ? '后端已有 Key，留空表示不修改'
+                : '输入 sk-...'
             }
           />
         </label>
@@ -878,7 +888,7 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
         </label>
 
         <label>
-          HTTP 代理（可选，国内访问 NovelAI 需配置）
+          HTTP 代理（可选）
           <input
             value={form.proxyUrl}
             onChange={(event) => updateConfig('proxyUrl', event.target.value)}
@@ -899,27 +909,20 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
         <div className="image-config-hint">
           <h4>
             <Paintbrush size={12} />
-            {isNovelAI ? 'NovelAI 使用说明' : 'OpenAI DALL-E 使用说明'}
+            OpenAI 图像生成使用说明
           </h4>
-          {isNovelAI ? (
-            <ul>
-              <li>在 NovelAI 网站登录后，从浏览器 DevTools → Network 中抓取 <code>Authorization</code> header 的 token</li>
-              <li>提示词将被编译为逗号分隔的 tags 格式（与 NovelAI 原生风格一致）</li>
-              <li>无 token 时自动降级为 Mock Provider</li>
-            </ul>
-          ) : (
-            <ul>
-              <li>需要 <code>sk-...</code> 格式的 OpenAI API Key，需开通 DALL-E 使用权限</li>
-              <li>DALL-E 3 支持 1024×1024、1024×1792、1792×1024</li>
-              <li>无 Key 时自动降级为 Mock Provider</li>
-            </ul>
-          )}
+          <ul>
+            <li>需要 <code>sk-...</code> 格式的 OpenAI API Key，需开通图像生成使用权限</li>
+            <li>GPT Image 2 是最新模型，DALL-E 3/2 为旧版</li>
+            <li>GPT Image 2 支持 1024×1024、1024×1536、1536×1024 等多种尺寸</li>
+            <li>无 Key 时自动降级为 Mock Provider</li>
+          </ul>
         </div>
 
         <div className="config-status-grid">
           <div>
             <strong>Provider</strong>
-            <span>{form.provider === 'openai' ? 'OpenAI DALL-E' : 'NovelAI'}</span>
+            <span>OpenAI</span>
           </div>
           <div>
             <strong>Model</strong>
@@ -955,6 +958,7 @@ function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
+  const [lightbox, setLightbox] = useState(null);
 
   async function loadAssets(selectedCategory) {
     setLoading(true);
@@ -1051,7 +1055,10 @@ function LibraryPage() {
         <div className="asset-grid">
           {assets.map((asset) => (
             <article className="asset-card" key={asset.id}>
-              <div className="asset-thumb">
+              <div
+                className="asset-thumb"
+                onClick={() => asset.localPath && setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider })}
+              >
                 {asset.localPath ? (
                   <img
                     src={buildAssetPreviewUrl(asset.localPath)}
@@ -1072,6 +1079,19 @@ function LibraryPage() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
         </div>
       )}
     </section>

@@ -53,14 +53,20 @@ class GptImageProvider(ImageProvider):
 
     def _call_dalle_api(self, prompt: str) -> tuple[str, str | None]:
         """Call OpenAI Images API and return (base64_png, revised_prompt)."""
-        payload = {
-            "model": image_runtime_config.image_model,
+        api_key = image_runtime_config.api_key
+        _require_ascii(api_key, "OpenAI API Key")
+
+        model = image_runtime_config.image_model
+        payload: dict = {
+            "model": model,
             "prompt": prompt,
             "n": 1,
             "size": image_runtime_config.image_size,
-            "quality": image_runtime_config.image_quality,
             "response_format": "b64_json",
         }
+        # Quality is only supported by DALL-E models, not gpt-image-*
+        if model.startswith("dall-e"):
+            payload["quality"] = image_runtime_config.image_quality
 
         with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
             response = client.post(
@@ -96,3 +102,16 @@ def _short_hash(value: str) -> str:
 
 def _relative_path(path: Path) -> str:
     return path.relative_to(BACKEND_ROOT).as_posix()
+
+
+def _require_ascii(value: str, label: str) -> None:
+    """Raise a clear error if `value` contains non-ASCII characters (e.g. Chinese)."""
+    if not value:
+        return
+    try:
+        value.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise RuntimeError(
+            f"{label} 包含非 ASCII 字符（{exc.start}-{exc.end}），"
+            f"HTTP 认证头只支持英文和数字。请检查 Image API 配置页面中的 Key/Token 是否正确。"
+        ) from None

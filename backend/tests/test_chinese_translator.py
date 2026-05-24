@@ -193,7 +193,7 @@ class TestIntegrationWithPipeline:
         assert "pixel art" in result
 
     def test_asset_fields_translated(self):
-        """Simulates what model_optimizers does for a NovelAI prompt."""
+        """Simulates what model_optimizers does for image generation prompts."""
         from app.prompt.chinese_translator import translate_chinese_text
 
         asset_name = "暗黑骑士"

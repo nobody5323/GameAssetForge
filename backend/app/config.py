@@ -84,7 +84,7 @@ class LlmRuntimeConfig:
 
 @dataclass
 class ImageRuntimeConfig:
-    """Image generation configuration for DALL-E / NovelAI providers."""
+    """Image generation configuration for OpenAI image providers."""
 
     provider: ImageGenProvider = "openai"
     base_url: str = "https://api.openai.com/v1"
@@ -92,8 +92,6 @@ class ImageRuntimeConfig:
     image_size: str = "1024x1024"
     image_quality: str = "standard"
     api_key: str = ""
-    # NovelAI-specific token (stored separately but surfaced via the same config)
-    novelai_token: str = ""
     proxy_url: str = ""
 
     @classmethod
@@ -105,7 +103,6 @@ class ImageRuntimeConfig:
             image_size=os.getenv("IMAGE_GEN_SIZE", "1024x1024"),
             image_quality=os.getenv("IMAGE_GEN_QUALITY", "standard"),
             api_key=os.getenv("IMAGE_GEN_API_KEY", ""),
-            novelai_token=os.getenv("NOVELAI_TOKEN", ""),
             proxy_url=os.getenv("IMAGE_GEN_PROXY", ""),
         )
         config.load_local()
@@ -118,15 +115,9 @@ class ImageRuntimeConfig:
         self.image_size = payload.imageSize.strip() or "1024x1024"
         self.image_quality = payload.imageQuality.strip() or "standard"
         if payload.clearApiKey:
-            if self.provider == "novelai":
-                self.novelai_token = ""
-            else:
-                self.api_key = ""
+            self.api_key = ""
         elif payload.apiKey is not None and payload.apiKey.strip():
-            if self.provider == "novelai":
-                self.novelai_token = payload.apiKey.strip()
-            else:
-                self.api_key = payload.apiKey.strip()
+            self.api_key = payload.apiKey.strip()
         if payload.clearProxy:
             self.proxy_url = ""
         elif payload.proxyUrl is not None:
@@ -143,7 +134,6 @@ class ImageRuntimeConfig:
         self.image_size = data.get("imageSize", self.image_size)
         self.image_quality = data.get("imageQuality", self.image_quality)
         self.api_key = data.get("apiKey", self.api_key)
-        self.novelai_token = data.get("novelaiToken", self.novelai_token)
         self.proxy_url = data.get("proxyUrl", self.proxy_url)
 
     def save_local(self) -> None:
@@ -157,7 +147,6 @@ class ImageRuntimeConfig:
                     "imageSize": self.image_size,
                     "imageQuality": self.image_quality,
                     "apiKey": self.api_key,
-                    "novelaiToken": self.novelai_token,
                     "proxyUrl": self.proxy_url,
                 },
                 ensure_ascii=False,
@@ -167,15 +156,13 @@ class ImageRuntimeConfig:
         )
 
     def is_available(self) -> bool:
-        """Check if the configured provider has credentials."""
-        if self.provider == "novelai":
-            return bool(self.novelai_token)
         return bool(self.api_key)
 
     def get_client_kwargs(self) -> dict:
         """Build httpx.Client keyword arguments including proxy."""
         kwargs = {"timeout": 120, "verify": True}
         if self.proxy_url:
+            _validate_ascii_url(self.proxy_url, "HTTP 代理地址")
             kwargs["proxy"] = self.proxy_url
         return kwargs
 
@@ -186,7 +173,7 @@ class ImageRuntimeConfig:
             imageModel=self.image_model,
             imageSize=self.image_size,
             imageQuality=self.image_quality,
-            hasApiKey=bool(self.novelai_token or self.api_key),
+            hasApiKey=bool(self.api_key),
             proxyUrl=self.proxy_url or None,
         )
 
@@ -194,6 +181,17 @@ class ImageRuntimeConfig:
 def normalize_base_url(value: str) -> str:
     base_url = value.strip().rstrip("/")
     return base_url or "https://api.openai.com/v1"
+
+
+def _validate_ascii_url(value: str, label: str) -> None:
+    """Raise a clear error if `value` contains non-ASCII characters."""
+    try:
+        value.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise RuntimeError(
+            f"{label}（{value!r}）包含非 ASCII 字符（位置 {exc.start}-{exc.end}），"
+            f"URL 只支持英文、数字和符号。请检查 Image API 配置页面。"
+        ) from None
 
 
 llm_runtime_config = LlmRuntimeConfig.load()

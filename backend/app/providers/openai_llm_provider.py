@@ -125,8 +125,7 @@ class OpenAiLlmProvider(LlmProvider):
             "\"assetType\":\"\",\"finalPrompt\":\"\",\"negativePrompt\":null}],"
             "\"warnings\":[]}]}. Use every requested asset. For targetModel=gpt_image, "
             "write natural English prompts with subject, style, composition, game usability, "
-            "technical requirements, and an Avoid sentence. For targetModel=novelai, "
-            "write comma-separated tags and put negative tags in negativePrompt. "
+            "technical requirements, and an Avoid sentence. "
             "Professional mode must return production_safe, style_exploration, and high_detail."
         )
 

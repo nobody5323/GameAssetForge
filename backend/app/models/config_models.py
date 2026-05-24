@@ -23,7 +23,7 @@ class LlmConfigResponse(BaseModel):
 
 # ── Image Generation Config ──
 
-ImageGenProvider = Literal["openai", "novelai"]
+ImageGenProvider = Literal["openai"]
 
 
 class ImageConfigUpdate(BaseModel):

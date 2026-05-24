@@ -2,7 +2,7 @@
 Chinese-to-English game asset tag translator.
 
 Translates Chinese game dev terms into English image generation tags
-so that NovelAI / DALL-E receive clean, usable prompts.
+so that image generation models receive clean, usable prompts.
 
 Falls back to Danbooru tag API for terms not in the local dictionary.
 """
@@ -378,7 +378,7 @@ def _lookup_danbooru(term: str) -> str | None:
         if results and isinstance(results, list) and len(results) > 0:
             tag_name = results[0].get("value") or results[0].get("label")
             if tag_name and isinstance(tag_name, str):
-                # Normalize: replace underscores with spaces (NovelAI convention)
+                # Normalize: replace underscores with spaces
                 english = tag_name.strip().replace("_", " ")
                 _danbooru_cache[term] = english
                 return english
