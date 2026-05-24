@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import re
+import time
 from pathlib import Path
 
 import httpx
@@ -80,12 +81,7 @@ class GptImageProvider(ImageProvider):
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt,
-                        }
-                    ],
+                    "content": prompt,
                 }
             ],
             "n": 1,
@@ -153,26 +149,37 @@ class GptImageProvider(ImageProvider):
         return image_data["b64_json"], revised_prompt
 
     def _httpx_post(self, url: str, payload: dict, api_label: str) -> dict:
-        """Make httpx POST and return parsed JSON. Wraps network errors as RuntimeError."""
+        """Make httpx POST and return parsed JSON. Wraps network errors as RuntimeError.
+
+        Retries once on transient network errors (server disconnect, etc.).
+        """
         api_key = image_runtime_config.api_key
-        try:
-            with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
-                response = client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json=payload,
-                )
-                _raise_on_api_error(response, api_label)
-        except RuntimeError:
-            raise
-        except httpx.RequestError as exc:
-            raise RuntimeError(
-                f"Image API ({api_label}) network error — 服务器连接断开: {exc}"
-            ) from exc
-        return response.json()
+        last_error = None
+        for attempt in range(2):  # original + 1 retry
+            try:
+                with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+                    response = client.post(
+                        url,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "Connection": "close",
+                        },
+                        json=payload,
+                    )
+                    _raise_on_api_error(response, api_label)
+                return response.json()
+            except RuntimeError:
+                raise
+            except httpx.RequestError as exc:
+                last_error = exc
+                if attempt == 0:
+                    time.sleep(5)  # wait before retry
+                    continue
+        raise RuntimeError(
+            f"Image API ({api_label}) network error — "
+            f"服务器连接断开（已重试 1 次）: {last_error}"
+        ) from last_error
 
     def _download_image(self, url: str) -> bytes:
         """Download image bytes from a URL using httpx."""
