@@ -106,7 +106,7 @@ Input → Prompt Compiler → Image Provider → Quality Inspector → Cloud Ass
 - tileset 切图；
 - 背景去除；
 - 风格一致性高级评分；
-- 多模型 Provider，如 NovelAI、FLUX、Stable Diffusion。
+- 多模型 Provider，如 FLUX、Stable Diffusion。
 
 ---
 
@@ -344,7 +344,7 @@ gameasset-forge/
   "theme": "cyber bamboo forest",
   "promptVersion": "v1.0",
   "finalPrompt": "Generate a 2D pixel art enemy sprite...",
-  "modelProvider": "mock/openai/novelai/flux",
+  "modelProvider": "mock/openai/flux",
   "localPath": "storage/generated-assets/enemy/bamboo_slime.png",
   "cloudUrl": "https://cdn.example.com/assets/bamboo_slime.png",
   "qualityScore": 86,
@@ -470,7 +470,6 @@ ImageProvider.generate(prompt, options)
 |---|---|
 | Mock Provider | 本地演示，无 API Key 也能跑通流程 |
 | OpenAI Image Provider | 通用 2D 素材生成 |
-| NovelAI Provider | 动漫 / 日系 RPG 风格素材生成，可作为扩展 |
 | FLUX / SD Provider | 低成本或本地部署扩展 |
 
 ### 10.3 返回结果

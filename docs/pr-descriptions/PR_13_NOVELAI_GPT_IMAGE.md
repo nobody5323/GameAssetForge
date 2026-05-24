@@ -1,5 +1,7 @@
 # PR13：NovelAI 与 GPT Image 真实生图接口
 
+> **⚠️ NovelAI 已移除：** NovelAI 生成的图片效果不适合本项目游戏素材需求，NovelAI 相关代码（provider、测试、前端 UI）已在后续 commit 中全部删除。当前项目仅保留 OpenAI（GPT Image / DALL-E）生图能力。本文档中 NovelAI 相关描述仅作历史记录参考。
+
 ## 新增/修改内容
 
 ### 后端

@@ -4,7 +4,7 @@
 Build a runnable GameAsset Forge MVP matching the 12-PR plan: React/Vite frontend, FastAPI backend, mock asset generation, quality inspection, manifest/zip export, simulated cloud upload, and documentation.
 
 ## Current Phase
-PR 13 — NovelAI & GPT Image Providers
+Post PR 13 — NovelAI 已移除
 
 ## Phases
 
@@ -78,7 +78,7 @@ PR 13 — NovelAI & GPT Image Providers
 - [x] Add Prompt Compiler request/response models.
 - [x] Add tag extraction, model optimizers, scorer, OpenAI LLM provider, and rule fallback provider.
 - [x] Add frontend normal/professional mode controls.
-- [x] Add frontend GPT Image/NovelAI target model controls.
+- [x] Add frontend GPT Image target model controls.
 - [x] Add candidate prompt display and local selection state.
 - [x] Add backend runtime LLM config API.
 - [x] Add frontend LLM config page.
@@ -214,20 +214,20 @@ PR 13 — NovelAI & GPT Image Providers
 - [x] Run frontend production build.
 - **Status:** complete
 
-### Phase 27: PR 13 NovelAI & GPT Image Providers
+### Phase 27: PR 13 NovelAI & GPT Image Providers (NovelAI 已移除)
 - [x] Add ImageRuntimeConfig to config.py (parallel to LlmRuntimeConfig).
 - [x] Add ImageConfigUpdate/ImageConfigResponse models to config_models.py.
 - [x] Add GET/PUT /api/config/image routes in config_routes.py.
-- [x] Implement GptImageProvider calling OpenAI DALL-E API.
-- [x] Implement NovelAIImageProvider calling NovelAI image gen API.
+- [x] Implement GptImageProvider calling OpenAI Images API.
 - [x] Add negativePrompt to ImageGenerationRequest.
 - [x] Add _select_provider() routing to AssetGenerationService (with auto-fallback).
-- [x] Add 11 backend tests (5 GPT + 6 NovelAI).
+- [x] Add 5 backend GPT tests.
 - [x] Create frontend/src/imageConfig.js with provider/model/size/quality options.
 - [x] Add "Image API 配置" nav tab and ImageConfigPage component.
 - [x] Add CSS styles for image config hint panels.
 - [x] Write PR13 description document.
 - [x] Update .env.example with image gen env vars.
+- [x] **后续移除：** NovelAI 效果不佳，整条链路删除（novelai_provider + 测试 + 前端 UI）。
 - **Status:** complete
 
 ### Phase 28: PR 13 Verification
