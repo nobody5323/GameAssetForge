@@ -766,7 +766,7 @@ function ImageConfigPage({ form, setForm, status, setStatus, loading, setLoading
       // Auto-switch model list when provider changes
       if (field === 'provider') {
         if (value === 'novelai') {
-          next.imageModel = 'nai-diffusion-4-curated-preview';
+          next.imageModel = 'nai-diffusion-4-full';
           next.baseUrl = 'https://image.novelai.net';
         } else {
           next.imageModel = 'dall-e-3';
