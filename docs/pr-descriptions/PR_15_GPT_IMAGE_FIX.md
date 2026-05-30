@@ -1,8 +1,8 @@
-# PR15：gpt-image-2 兼容第三方中转站 + 素材生成容错
+# PR15：gpt-image-2 第三方中转站兼容 + 素材生成容错 + 质量检测重构
 
 ## 新增/修改内容
 
-### 后端
+### 后端 — gpt-image-2 兼容
 - **修改**：`backend/app/providers/gpt_image_provider.py` — 重构 API 调用层
   - 模型分发：`dall-e-*` → Images API，`gpt-image-2` → Chat Completions API
   - 提取 `_httpx_post()` 公共方法，包含网络错误捕获和自动重试
@@ -28,10 +28,28 @@
   - 新增 `test_api_error_returns_runtime_error_with_body` — API 错误体透传
   - Mock 调整为匹配中转站实际返回格式（Markdown 图片链接）
 
+### 后端 — 质量检测重构
+- **修改**：`backend/app/models/quality_models.py` — 数据模型重构
+  - 新增 `QualityCriterion` 模型，表示维度内单个检查点（label/passed/deduction/message/suggestion）
+  - `QualityCheck` 增加 weight/weightedScore/grade/suggestions/criteria 字段
+  - `AssetQualityReport` 增加 qualityGrade/promptOptimizationTips 字段
+
+- **修改**：`backend/app/services/quality_service.py` — 加权评分体系
+  - 6 维度加权评分：格式合规(15%) / 尺寸规格(20%) / 分类匹配(15%) / 清晰度(20%) / Prompt一致性(20%) / 视觉质量(10%)
+  - 每维度拆分为多个 `QualityCriterion` 检查点
+  - 维度等级 A/B/C/D/F 评分
+  - 根据薄弱维度自动生成提示词优化建议
+
+- **修改**：`backend/tests/test_quality_inspector.py` — 适配新评估模型
+
 ### 前端
-- **修改**：`frontend/src/App.jsx` — 素材生成页
+- **修改**：`frontend/src/App.jsx` — 素材生成页 + 质量报告页
   - 生成结果标题显示失败计数（如"已生成 1 个素材，1 个失败"）
-  - 素材网格下方显示失败详情（红色提示框，列出每个失败的素材和原因）
+  - 素材网格下方显示失败详情（红色提示框）
+  - 质量报告页展示维度等级徽章和优化建议
+
+- **修改**：`frontend/src/styles.css` — 质量报告页样式
+  - 等级徽章（A~F 色阶）、建议卡片、维度详情布局
 
 - **修改**：`frontend/src/assetGeneration.js` — 摘要函数
   - `summarizeGeneratedAssets` 包含失败数量
@@ -97,17 +115,61 @@
 - `_httpx_post()` — 捕获 `httpx.RequestError` 转为 `RuntimeError` → 路由层返回 502
 - 前端错误显示：拿到完整错误信息展示给用户
 
+### 质量检测加权评分重构
+
+**问题背景**：原有质量检测使用简单扣分制，7 项检查每项有固定扣分上限（如 PNG 合规 0 分 / 尺寸 30 分 / 命名 20 分等），维度间没有权重差异，也没有给用户的提示词优化建议。
+
+**解决方案**：
+
+1. **6 维度加权评分** — 每个维度独立评分后按权重折算：
+   | 维度 | 权重 | 说明 |
+   |------|------|------|
+   | format（格式合规） | 15% | PNG 文件头验证、是否为有效 PNG |
+   | dimensions（尺寸规格） | 20% | 分辨率分级、2的幂对齐、纯色检测 |
+   | category_fit（分类匹配） | 15% | 素材类型目录正确性 |
+   | clarity（清晰度） | 20% | 颜色深度、文件大小合理性 |
+   | prompt_alignment（Prompt一致性） | 20% | Prompt 长度、风格关键词、名称匹配 |
+   | visual_quality（视觉质量） | 10% | cloudUrl 就绪、非 Mock 生产 |
+
+2. **QualityCriterion 子检查点** — 每个维度拆分为多个具体检查点：
+   ```
+   QualityCheck (dimensions)
+   ├── QualityCriterion: 分辨率 ≥ 256px → ✓ 通过
+   ├── QualityCriterion: 尺寸为 2 的幂 → ✓ 通过  
+   ├── QualityCriterion: 宽高 16 对齐 → ✗ 扣 5 分
+   └── QualityCriterion: 纯色检测 → ✓ 通过
+   ```
+
+3. **等级评估** — 维度得分映射为 A/B/C/D/F 等级：
+   - A (90-100)：优秀
+   - B (75-89)：良好
+   - C (60-74)：合格
+   - D (40-59)：待改进
+   - F (0-39)：不合格
+
+4. **提示词优化建议** — 根据薄弱维度自动生成：
+   - 例：尺寸偏低 → "建议将生成尺寸提高到 512x512 以上"
+   - 例：Prompt 质量低 → "建议在 description 中增加风格关键词和细节"
+
+5. **前端展示**：
+   - 等级彩色徽章（绿 A → 黄 C → 红 F）
+   - 每个维度展开显示子检查点
+   - 提示词优化建议卡片
+
 ## 实现思路
 
 - **API 分发**：在 `generate()` 中检查 `image_model` 前缀（`dall-e` vs 其他），选择对应端点，未来新增模型（如 DALL-E 4、Sora image 等）无需改动调用侧
 - **响应格式探测**：先尝试 annotations → 再尝试 content URL，失败时把完整响应内容打印到错误消息中方便调试
 - **网络重试**：`_httpx_post()` 重试逻辑只拦截 `httpx.RequestError`（网络层），不拦截 `RuntimeError`（业务/认证层），避免重复执行无效请求
 - **容错设计**：服务层逐素材 try/except，`AssetGenerateResponse.errors` 为可选字段（空列表时不展示），向后兼容
+- **质量评分**：`QualityCriterion` 作为维度内原子检查点，`QualityCheck` 聚合子项并计算 weightedScore，`QualityService` 根据 `DIMENSION_WEIGHTS` 和 `PASS_THRESHOLD` 生成总评
+- **提示词优化**：检查各维度得分，低于阈值的维度触发对应建议模板，收集到 `promptOptimizationTips` 返回前端
 
 ## 测试覆盖
 
-### 后端（gpt_image_provider：7 个测试全部通过）
+### 后端（93 个测试全部通过）
 
+**gpt_image_provider (7 tests)**：
 - `test_gpt_provider_is_available_with_key` — 有密钥时可用
 - `test_gpt_provider_not_available_without_key` — 无密钥时不可用
 - `test_dalle_generates_image` — DALL-E 走 Images API
@@ -115,6 +177,8 @@
 - `test_dalle_path_sanitized` — 路径特殊字符清理
 - `test_gpt_image2_generates_image` — **新增**：gpt-image-2 走 Chat Completions + Markdown URL 格式
 - `test_api_error_returns_runtime_error_with_body` — **新增**：API 错误体正确透传（含中文）
+
+**test_quality_inspector** — 适配新加权评分模型（QualityCriterion / 维度等级 / 优化建议）
 
 ### 前端（17 个测试全部通过）
 
