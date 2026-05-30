@@ -37,3 +37,9 @@ class ExportResponse(BaseModel):
     assetCount: int
     manifestSize: int = Field(..., description="manifest.json 字节数")
     totalSize: int = Field(..., description="zip 文件总字节数")
+
+
+class ExportSelectedRequest(BaseModel):
+    """按素材 ID 列表导出。"""
+
+    assetIds: list[str] = Field(..., min_length=1, examples=[["asset_abc123", "asset_def456"]])

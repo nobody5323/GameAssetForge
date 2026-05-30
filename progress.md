@@ -468,3 +468,17 @@
 | What's the goal? | Runnable GameAsset Forge MVP + real AI providers — DONE |
 | What have I learned? | See findings.md |
 | What have I done? | Completed all 13 PRs for MVP |
+
+### Phase 29: Quality Scoring Rewrite
+- **Status:** in progress
+- User requested the quality test to match a 6-dimension weighted image-quality rubric.
+- Inspection found `quality_models.py` had moved to `dimensions/subChecks`, but `quality_service.py`, tests, and frontend still used the old `checks/QualityCheck` contract.
+- Current backend quality test fails during collection with `ImportError: cannot import name 'QualityCheck'`.
+- Rewrote quality models to `QualityDimension` and `QualitySubCheck`.
+- Rewrote quality service to return 6 weighted dimensions: format, dimensions, category_fit, clarity, prompt_alignment, visual_quality.
+- Updated frontend quality page to display dimension scores, weights, weighted scores, sub-check deductions, and optimization hints.
+- Updated quality tests to assert 6 dimensions, per-dimension sub-check counts, weighted totals, prompt tips, and API shape.
+- Verification: `python -m pytest tests\test_quality_inspector.py` passed 15 tests.
+- Verification: related backend suite passed 40 tests.
+- Verification: `npm test -- --run` passed 17 tests after sandbox escalation; `npm run build` passed.
+- Full backend suite currently has 2 unrelated cloud upload failures because runtime cloud provider selected Qiniu without credentials.

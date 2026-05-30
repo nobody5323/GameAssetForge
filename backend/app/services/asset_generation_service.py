@@ -7,6 +7,7 @@ from app.models.asset_models import (
     ImageGenerationRequest,
 )
 from app.models.prompt_models import PromptCompileRequest
+from app.presets.secondary_presets import build_action_prompt, get_presets_for_type
 from app.prompt.prompt_compiler import PromptCompiler
 from app.providers.gpt_image_provider import GptImageProvider
 from app.providers.image_provider import ImageProvider
@@ -99,3 +100,66 @@ class AssetGenerationService:
             fallback=prompt_response.fallback,
             assets=records,
         )
+
+    def regenerate_asset(
+        self,
+        original_asset: AssetRecord,
+        action: str,
+        custom_prompt: str | None = None,
+    ) -> AssetRecord:
+        presets = get_presets_for_type(original_asset.assetType)
+        if not presets:
+            raise ValueError(f"Asset type '{original_asset.assetType}' does not support secondary generation")
+
+        action_prompt = build_action_prompt(original_asset.assetType, action)
+        if not action_prompt:
+            raise ValueError(f"Unknown action '{action}' for asset type '{original_asset.assetType}'")
+
+        prompt_parts = [
+            "Create a 2D game asset variation.",
+            f"Original asset: {original_asset.assetName} ({original_asset.assetType}).",
+            f"Style: {original_asset.style}. Theme: {original_asset.theme}.",
+            f"Variation: {action_prompt}",
+        ]
+        if custom_prompt:
+            prompt_parts.append(f"Additional requirements: {custom_prompt}")
+        prompt_parts.append(
+            "Maintain visual consistency with the original asset's style and art direction. "
+            "Game-ready 2D asset, clear silhouette, centered composition. No text, no watermark."
+        )
+        final_prompt = " ".join(prompt_parts)
+
+        regen_id = f"regen_{uuid4().hex[:12]}"
+        image_provider = self._select_provider("gpt_image")
+
+        generated = image_provider.generate(
+            ImageGenerationRequest(
+                generationId=regen_id,
+                assetName=f"{original_asset.assetName}_{action}",
+                assetType=original_asset.assetType,
+                style=original_asset.style,
+                theme=original_asset.theme,
+                finalPrompt=final_prompt,
+                negativePrompt=None,
+                promptVersion=PROMPT_VERSION,
+            )
+        )
+
+        new_asset = AssetRecord(
+            id=f"asset_{uuid4().hex[:12]}",
+            generationId=regen_id,
+            projectName=original_asset.projectName,
+            assetName=f"{original_asset.assetName}_{action}",
+            assetType=original_asset.assetType,
+            style=original_asset.style,
+            theme=original_asset.theme,
+            finalPrompt=final_prompt,
+            promptVersion=PROMPT_VERSION,
+            localPath=generated.localPath,
+            provider=generated.provider,
+            providerMetadata=generated.metadata,
+            parentAssetId=original_asset.id,
+        )
+
+        self.asset_repository.save_generation(regen_id, [new_asset])
+        return new_asset

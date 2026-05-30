@@ -124,6 +124,78 @@ class ExportService:
                 gen_ids.append(asset.generationId)
         return gen_ids
 
+    def export_selected(self, asset_ids: list[str]) -> tuple[ExportResponse, bytes]:
+        """按素材 ID 列表导出选中的素材为 zip 包。"""
+        all_assets = self._repository.list_assets()
+        asset_map = {a.id: a for a in all_assets}
+        selected: list[AssetRecord] = []
+        for aid in asset_ids:
+            asset = asset_map.get(aid)
+            if asset is None:
+                raise ValueError(f"素材不存在：{aid}")
+            selected.append(asset)
+
+        if not selected:
+            raise ValueError("未选择任何素材")
+
+        project_name = selected[0].projectName or "selected_assets"
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        manifest_assets: list[ManifestAsset] = []
+        for asset in selected:
+            zip_path = f"{asset.assetType}/{Path(asset.localPath).name}"
+            manifest_assets.append(
+                ManifestAsset(
+                    id=asset.id,
+                    assetName=asset.assetName,
+                    assetType=asset.assetType,
+                    style=asset.style,
+                    theme=asset.theme,
+                    finalPrompt=asset.finalPrompt,
+                    localPath=zip_path,
+                    provider=asset.provider,
+                    qualityScore=asset.qualityScore,
+                )
+            )
+
+        gen_id = f"export_{now_iso[:10]}_{len(selected)}assets"
+        manifest = Manifest(
+            generationId=gen_id,
+            projectName=project_name,
+            exportedAt=now_iso,
+            assetCount=len(manifest_assets),
+            assets=manifest_assets,
+        )
+
+        manifest_json = json.dumps(
+            manifest.model_dump(), ensure_ascii=False, indent=2
+        ).encode("utf-8")
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("manifest.json", manifest_json)
+            for asset in selected:
+                file_path = BACKEND_ROOT / asset.localPath
+                zip_path = f"{asset.assetType}/{Path(asset.localPath).name}"
+                if file_path.exists():
+                    zf.write(file_path, zip_path)
+
+        zip_bytes = zip_buffer.getvalue()
+        zip_file_name = f"{gen_id}.zip"
+
+        EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+        (EXPORT_DIR / zip_file_name).write_bytes(zip_bytes)
+
+        response = ExportResponse(
+            generationId=gen_id,
+            zipFileName=zip_file_name,
+            assetCount=len(selected),
+            manifestSize=len(manifest_json),
+            totalSize=len(zip_bytes),
+        )
+
+        return response, zip_bytes
+
     @staticmethod
     def _infer_project_name(generation_id: str, sample_asset: AssetRecord) -> str:
         """从素材路径推断项目名称。"""

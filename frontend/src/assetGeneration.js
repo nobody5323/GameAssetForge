@@ -125,3 +125,64 @@ export async function uploadGenerationToCloud(generationId) {
 
   return response.json();
 }
+
+export async function regenerateAsset(assetId, action, customPrompt) {
+  const response = await fetch(
+    `${API_BASE_URL}/assets/${encodeURIComponent(assetId)}/regenerate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, customPrompt: customPrompt || null }),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Regeneration failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function regenerateBatch(assetId, actions, customPrompt) {
+  const response = await fetch(`${API_BASE_URL}/assets/regenerate-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assetId, actions, customPrompt: customPrompt || null }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Batch regeneration failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function exportSelectedAssets(assetIds) {
+  const response = await fetch(`${API_BASE_URL}/exports/selected`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assetIds }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Export failed with ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `export_${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
+
+  return {
+    assetCount: parseInt(response.headers.get('X-Asset-Count') || '0', 10),
+    totalSize: parseInt(response.headers.get('X-Total-Size') || '0', 10),
+  };
+}

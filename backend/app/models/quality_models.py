@@ -1,36 +1,61 @@
+"""质量检测数据模型：6 个维度的加权百分比评分。"""
+
 from pydantic import BaseModel, Field
 
 
-class QualityCheck(BaseModel):
-    """单项质量检查结果（扣分制：score=扣分, maxScore=该项最多可扣分, passed=True表示无扣分）"""
+class QualitySubCheck(BaseModel):
+    """质量维度下的单个检查点。"""
 
-    name: str = Field(..., examples=["dimensions"], description="检查项标识名")
-    label: str = Field(..., examples=["尺寸规格"], description="检查项中文标签")
-    passed: bool = Field(..., description="是否通过（扣分为 0 即为通过）")
-    message: str = Field(..., examples=["尺寸 64x64 偏小（<128px），建议 ≥256px"], description="检查详情或扣分原因")
-    score: int = Field(..., examples=[25], description="该项实际扣分（0 = 无扣分，越大越差）")
-    maxScore: int = Field(..., examples=[30], description="该项最多可扣分数")
+    name: str = Field(..., examples=["png_signature"], description="检查点标识")
+    label: str = Field(..., examples=["PNG 文件头有效"], description="检查点中文名称")
+    passed: bool = Field(..., description="是否通过")
+    message: str = Field(..., description="检查结果说明")
+    deductionPct: int = Field(..., examples=[20], description="未通过时在本维度内扣除的百分比")
+    weightHint: str = Field(default="", description="该检查点在所属维度内的权重说明")
+    optimizationHint: str = Field(default="", description="不通过时给用户的提示词或素材优化建议")
+
+
+class QualityDimension(BaseModel):
+    """单个质量维度，包含维度权重和子检查点列表。"""
+
+    name: str = Field(..., examples=["dimensions"], description="质量维度标识")
+    label: str = Field(..., examples=["图片尺寸"], description="展示给用户的维度名称")
+    weightPct: int = Field(..., examples=[20], description="该维度在总分中的权重百分比")
+    subChecks: list[QualitySubCheck] = Field(default_factory=list, description="该维度下的具体检查点")
+    dimensionScore: int = Field(default=100, description="该维度得分，范围 0-100")
+    weightedScore: float = Field(default=0.0, description="该维度按权重折算后的得分")
+    passed: bool = Field(default=True, description="该维度是否达到可接受标准")
+    passedCount: int = Field(default=0, description="通过的检查点数量")
+    totalCount: int = Field(default=0, description="检查点总数")
 
 
 class AssetQualityReport(BaseModel):
-    """单个素材的质量报告"""
+    """单个素材的质量报告。"""
 
     assetId: str
     assetName: str
     assetType: str
     generationId: str
-    checks: list[QualityCheck]
-    totalScore: int = Field(..., description="最终得分（100 - 总扣分，下限 0）")
-    maxScore: int = Field(..., description="满分（固定 100）")
+    dimensions: list[QualityDimension] = Field(default_factory=list, description="6 个质量维度")
+    totalScore: int = Field(..., description="加权综合得分，范围 0-100")
+    maxScore: int = Field(default=100, description="满分，固定为 100")
+    grade: str = Field(..., description="综合质量等级")
+    overallHint: str = Field(default="", description="综合优化建议")
+    promptOptimizationTips: list[str] = Field(default_factory=list, description="可执行的提示词优化建议")
 
 
 class GenerationQualityReport(BaseModel):
-    """整个 generation 的质量汇总报告"""
+    """单次生成任务的质量汇总报告。"""
 
     generationId: str
-    assets: list[AssetQualityReport]
-    overallScore: int = Field(..., description="所有素材得分的平均值")
-    maxScore: int = Field(..., description="满分（固定 100）")
-    assetCount: int
-    passCount: int = Field(..., description="得分 ≥ 60 的素材数")
-    failCount: int = Field(..., description="得分 < 60 的素材数")
+    assets: list[AssetQualityReport] = Field(default_factory=list)
+    overallScore: int = Field(default=0, description="所有素材综合得分的平均值")
+    maxScore: int = Field(default=100, description="满分，固定为 100")
+    assetCount: int = 0
+    passCount: int = Field(default=0, description="得分大于等于 60 的素材数量")
+    failCount: int = Field(default=0, description="得分低于 60 的素材数量")
+    gradeA: int = Field(default=0, description="A 级素材数量")
+    gradeB: int = Field(default=0, description="B 级素材数量")
+    gradeC: int = Field(default=0, description="C 级素材数量")
+    gradeD: int = Field(default=0, description="D 级素材数量")
+    gradeF: int = Field(default=0, description="F 级素材数量")
