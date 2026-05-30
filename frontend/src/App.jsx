@@ -1349,7 +1349,7 @@ function QualityPage() {
       const data = await fetchQualityReport(generationId.trim());
       setReport(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Quality check failed');
+      setError(err instanceof Error ? err.message : '质量检查失败');
     } finally {
       setLoading(false);
     }
@@ -1364,13 +1364,13 @@ function QualityPage() {
   return (
     <section className="panel quality-panel">
       <div className="section-heading">
-        <h3>Quality Inspector</h3>
+        <h3>质量检查器</h3>
         <span>{report ? `报告就绪` : '待检查'}</span>
       </div>
 
       <form className="quality-form" onSubmit={handleInspect}>
         <label>
-          Generation ID
+          生成任务 ID
           <div className="quality-input-row">
             {generationIds.length > 0 ? (
               <select
@@ -1392,7 +1392,7 @@ function QualityPage() {
             )}
             <button className="primary-button" type="submit" disabled={loading || !generationId.trim()}>
               <ShieldCheck size={14} />
-              INSPECT
+              开始检查
             </button>
           </div>
         </label>
@@ -1416,7 +1416,7 @@ function QualityPage() {
       {!loading && !error && !report && (
         <div className="empty-state">
           <ShieldCheck size={28} />
-          选择一个 Generation ID 并点击 INSPECT 开始质量检查。
+          选择一个生成任务 ID 并点击“开始检查”。
         </div>
       )}
 
@@ -1462,6 +1462,7 @@ function QualityPage() {
                 </span>
                 <strong>{assetReport.assetName}</strong>
                 <span className="quality-asset-type">{assetTypeLabels[assetReport.assetType] || assetReport.assetType}</span>
+                <span className="quality-asset-type">{assetReport.qualityGrade}</span>
               </div>
               <div className="quality-checks">
                 {assetReport.checks.map((check) => (
@@ -1477,15 +1478,40 @@ function QualityPage() {
                       )}
                     </span>
                     <div className="quality-check-info">
-                      <strong>{check.label}</strong>
+                      <strong>
+                        {check.label} · {check.grade} · 权重 {check.weight}%
+                      </strong>
                       <p>{check.message}</p>
+                      {check.suggestions?.length > 0 && (
+                        <p className="quality-check-tip">提示词优化：{check.suggestions.join('；')}</p>
+                      )}
+                      {check.criteria?.length > 0 && (
+                        <ul className="quality-criteria">
+                          {check.criteria.map((criterion) => (
+                            <li className={criterion.passed ? 'passed' : 'failed'} key={criterion.label}>
+                              <span>{criterion.passed ? '通过' : `扣 ${criterion.deduction}`}</span>
+                              {criterion.label}: {criterion.message}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                     <span className="quality-check-deduction">
-                      {check.passed ? '✓' : `-${check.score}`}
+                      {check.score}/100 · 加权得分 {check.weightedScore}
                     </span>
                   </div>
                 ))}
               </div>
+              {assetReport.promptOptimizationTips?.length > 0 && (
+                <div className="quality-tips">
+                  <strong>提示词优化建议</strong>
+                  <ul>
+                    {assetReport.promptOptimizationTips.map((tip) => (
+                      <li key={tip}>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>
