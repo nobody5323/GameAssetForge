@@ -258,3 +258,9 @@ Post PR 13 — NovelAI 已移除
 ## Notes
 - Avoid relying on real AI image APIs for MVP acceptance.
 - Keep generated runtime files under `storage/`.
+
+### Phase 29: Quality Scoring Rewrite
+- [x] Align quality models, service, frontend, and tests around 6 weighted image-quality dimensions.
+- [x] Add explicit sub-checks with deduction percentages and prompt optimization hints.
+- [x] Verify backend quality tests, related backend tests, frontend tests, and frontend build.
+- **Status:** complete

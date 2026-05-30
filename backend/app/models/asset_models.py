@@ -54,6 +54,7 @@ class AssetRecord(BaseModel):
     qualityScore: int | None = None
     provider: str
     providerMetadata: dict[str, str | int | bool]
+    parentAssetId: str | None = None
 
 
 class AssetGenerateResponse(BaseModel):
@@ -63,3 +64,14 @@ class AssetGenerateResponse(BaseModel):
     fallback: bool
     assets: list[AssetRecord]
     errors: list[str] = []
+
+
+class SecondaryGenerationRequest(BaseModel):
+    action: str = Field(..., examples=["move"])
+    customPrompt: str | None = Field(default=None, examples=["make it more dynamic, add motion blur"])
+
+
+class BatchRegenerateRequest(BaseModel):
+    assetId: str = Field(..., examples=["asset_abc123"])
+    actions: list[str] = Field(..., examples=[["move", "attack"]])
+    customPrompt: str | None = Field(default=None, examples=["add fire effects"])

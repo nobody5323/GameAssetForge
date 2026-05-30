@@ -9,6 +9,7 @@ from app.models.quality_models import AssetQualityReport, GenerationQualityRepor
 from app.providers.mock_image_provider import BACKEND_ROOT
 from app.repositories.asset_repository import DB_PATH
 from app.services.quality_service import (
+    DIMENSION_WEIGHTS,
     QualityService,
     _is_power_of_two,
     _is_solid_color_png,
@@ -94,7 +95,7 @@ class TestPngHelpers:
 
 
 class TestWeightedQualityScoring:
-    def test_mock_asset_has_weighted_dimensions_and_tips(self, monkeypatch):
+    def test_report_has_six_weighted_dimensions_and_prompt_tips(self, monkeypatch):
         client = TestClient(app)
         asset = _generate_asset(client, monkeypatch, "character", "hero")
 
@@ -102,20 +103,28 @@ class TestWeightedQualityScoring:
 
         assert isinstance(report, AssetQualityReport)
         assert report.maxScore == 100
-        assert report.totalScore < 100
-        assert report.qualityGrade in {"A", "B", "C", "D", "F"}
-        assert len(report.checks) == 6
-        assert sum(check.weight for check in report.checks) == 100
-        assert all(0 <= check.score <= 100 for check in report.checks)
-        assert all(0 <= check.weightedScore <= check.weight for check in report.checks)
+        assert 0 <= report.totalScore < 100
+        assert report.grade in {"A", "B", "C", "D", "F"}
+        assert len(report.dimensions) == 6
+        assert {dimension.name for dimension in report.dimensions} == set(DIMENSION_WEIGHTS)
+        assert sum(dimension.weightPct for dimension in report.dimensions) == 100
+        assert all(0 <= dimension.dimensionScore <= 100 for dimension in report.dimensions)
+        assert all(0 <= dimension.weightedScore <= dimension.weightPct for dimension in report.dimensions)
         assert report.promptOptimizationTips
-        important = {"dimensions", "category_fit", "clarity", "prompt_alignment", "visual_quality"}
-        for check in report.checks:
-            if check.name in important:
-                assert len(check.criteria) >= 6
-            else:
-                assert len(check.criteria) >= 3
-            assert all(criterion.label for criterion in check.criteria)
+
+        for dimension in report.dimensions:
+            assert len([sub for sub in dimension.subChecks if sub.name != "dimension_detail"]) >= 6
+            assert all(sub.label and sub.message for sub in dimension.subChecks)
+            assert all(0 <= sub.deductionPct <= 100 for sub in dimension.subChecks)
+
+    def test_weighted_total_uses_dimension_score_times_weight(self, monkeypatch):
+        client = TestClient(app)
+        asset = _generate_asset(client, monkeypatch, "enemy", "bamboo_slime")
+
+        report = QualityService().inspect_asset(asset["id"])
+        expected = round(sum(d.dimensionScore * d.weightPct / 100 for d in report.dimensions))
+
+        assert report.totalScore == expected
 
     def test_perfect_asset_scores_high(self):
         from app.models.asset_models import AssetRecord
@@ -131,16 +140,16 @@ class TestWeightedQualityScoring:
             theme="fantasy",
             finalPrompt=(
                 "A pixel art hero_knight character sprite for a fantasy 2D platformer game. "
-                "The character wears silver armor with a blue cape. "
-                "Style: 16-bit retro pixel art with clean outlines and flat shading. "
-                "Composition: side-view idle pose, 256x256 canvas, transparent background."
+                "The character wears silver armor with blue cape material details and warm lighting. "
+                "Style: 16-bit retro pixel art with clean outlines, crisp edges, readable small size. "
+                "Composition: side-view idle pose, 256x256 canvas, transparent background, clear silhouette."
             ),
             promptVersion="prompt-v2",
             localPath="runtime/storage/generated-assets/gen_perfect/character/hero_knight.png",
             cloudUrl="https://cdn.example.com/assets/hero_knight.png",
             qualityScore=None,
             provider="openai",
-            providerMetadata={"model": "dall-e-3", "mock": False},
+            providerMetadata={"model": "gpt-image-1", "mock": False},
         )
         png_path = BACKEND_ROOT / perfect.localPath
         _write_checker_png(png_path, width=256, height=256)
@@ -149,8 +158,8 @@ class TestWeightedQualityScoring:
             repo = AssetRepository()
             repo.save_generation(perfect.generationId, [perfect])
             report = QualityService(repository=repo).inspect_asset(perfect.id)
-            assert report.totalScore >= 95
-            assert report.qualityGrade in {"S", "A"}
+            assert report.totalScore >= 90
+            assert report.grade == "A"
         finally:
             if png_path.exists():
                 png_path.unlink()
@@ -162,11 +171,10 @@ class TestWeightedQualityScoring:
         asset = _generate_asset(client, monkeypatch, "item", "Bad Coin!")
 
         report = QualityService().inspect_asset(asset["id"])
-        category = _find_check(report, "category_fit")
+        category = _find_dimension(report, "category_fit")
 
-        assert not category.passed
-        assert category.score < 100
-        assert any("snake_case" in tip for tip in category.suggestions)
+        assert category.dimensionScore < 100
+        assert any("snake_case" in sub.label or "snake_case" in sub.message for sub in category.subChecks)
 
 
 class TestGenerationReport:
@@ -200,6 +208,7 @@ class TestGenerationReport:
         assert report.assetCount == 2
         assert len(report.assets) == 2
         assert report.assets[0].totalScore != report.assets[1].totalScore
+        assert report.gradeA + report.gradeB + report.gradeC + report.gradeD + report.gradeF == 2
 
     def test_empty_generation_returns_zero(self):
         report = QualityService().inspect_generation("nonexistent_gen")
@@ -216,11 +225,11 @@ class TestFatalFormatCheck:
         (BACKEND_ROOT / asset["localPath"]).write_bytes(b"not a png file")
 
         report = QualityService().inspect_asset(asset["id"])
+        format_dimension = _find_dimension(report, "format")
 
         assert report.totalScore == 0
-        assert len(report.checks) == 1
-        assert report.checks[0].name == "format"
-        assert report.checks[0].score == 0
+        assert format_dimension.dimensionScore == 0
+        assert any(not sub.passed and "PNG" in sub.message for sub in format_dimension.subChecks)
 
     def test_missing_file_scores_zero(self, monkeypatch):
         client = TestClient(app)
@@ -228,14 +237,15 @@ class TestFatalFormatCheck:
         (BACKEND_ROOT / asset["localPath"]).unlink()
 
         report = QualityService().inspect_asset(asset["id"])
+        format_dimension = _find_dimension(report, "format")
 
         assert report.totalScore == 0
-        assert report.checks[0].name == "format"
-        assert "不存在" in report.checks[0].message
+        assert format_dimension.name == "format"
+        assert any("不存在" in sub.message for sub in format_dimension.subChecks)
 
 
 class TestQualityAPI:
-    def test_inspect_endpoint_returns_weighted_report(self, monkeypatch):
+    def test_inspect_endpoint_returns_weighted_dimension_report(self, monkeypatch):
         client = TestClient(app)
         asset = _generate_asset(client, monkeypatch, "item", "coin")
 
@@ -246,10 +256,11 @@ class TestQualityAPI:
         assert data["assetId"] == asset["id"]
         assert data["maxScore"] == 100
         assert 0 <= data["totalScore"] <= 100
-        assert data["qualityGrade"]
+        assert data["grade"]
         assert "promptOptimizationTips" in data
-        assert all("weight" in check and "weightedScore" in check for check in data["checks"])
-        assert all("criteria" in check and check["criteria"] for check in data["checks"])
+        assert len(data["dimensions"]) == 6
+        assert all("weightPct" in dimension and "weightedScore" in dimension for dimension in data["dimensions"])
+        assert all("subChecks" in dimension and dimension["subChecks"] for dimension in data["dimensions"])
 
     def test_inspect_404_for_unknown_asset(self):
         client = TestClient(app)
@@ -283,13 +294,13 @@ class TestQualityAPI:
         assert data["maxScore"] == 100
 
 
-def _find_check(report_or_data, name: str):
-    items = report_or_data.checks if hasattr(report_or_data, "checks") else report_or_data["checks"]
+def _find_dimension(report_or_data, name: str):
+    items = report_or_data.dimensions if hasattr(report_or_data, "dimensions") else report_or_data["dimensions"]
     for item in items:
-        check_name = item.name if hasattr(item, "name") else item["name"]
-        if check_name == name:
+        dimension_name = item.name if hasattr(item, "name") else item["name"]
+        if dimension_name == name:
             return item
-    raise ValueError(f"Check '{name}' not found")
+    raise ValueError(f"Dimension '{name}' not found")
 
 
 def _write_checker_png(path: Path, width: int, height: int) -> None:

@@ -24,10 +24,12 @@ import {
 import {
   buildAssetPreviewUrl,
   exportGeneration,
+  exportSelectedAssets,
   fetchAssets,
   fetchExportableGenerations,
   fetchQualityReport,
   generateAssets,
+  regenerateBatch,
   summarizeGeneratedAssets,
   uploadGenerationToCloud,
 } from './assetGeneration.js';
@@ -66,9 +68,11 @@ import {
   promptModes,
   targetModels,
 } from './promptCompiler.js';
+import { getPresetsForType } from './secondaryPresets.js';
 
 const views = [
   { id: 'generate', label: '素材生成', icon: Play },
+  { id: 'regenerate', label: '二次生成', icon: RefreshCw },
   { id: 'config', label: 'LLM 配置', icon: Bot },
   { id: 'imageConfig', label: 'Image API 配置', icon: Paintbrush },
   { id: 'cloudConfig', label: '云存储配置', icon: Cloud },
@@ -193,6 +197,7 @@ function App() {
             setAssetGenerationState={setAssetGenerationState}
           />
         )}
+        {activeView === 'regenerate' && <RegeneratePage />}
         {activeView === 'config' && (
           <ConfigPage
             form={llmConfigForm}
@@ -1361,6 +1366,27 @@ function QualityPage() {
     return 'var(--accent-red)';
   }
 
+  function normalizeDimensions(assetReport) {
+    return (assetReport.dimensions || assetReport.checks || []).map((dimension) => ({
+      name: dimension.name,
+      label: dimension.label,
+      passed: dimension.passed,
+      dimensionScore: dimension.dimensionScore ?? dimension.score ?? 0,
+      weightPct: dimension.weightPct ?? dimension.weight ?? 0,
+      weightedScore: dimension.weightedScore ?? 0,
+      passedCount: dimension.passedCount ?? 0,
+      totalCount: dimension.totalCount ?? (dimension.subChecks || dimension.criteria || []).length,
+      subChecks: (dimension.subChecks || dimension.criteria || []).map((subCheck) => ({
+        name: subCheck.name || subCheck.label,
+        label: subCheck.label,
+        passed: subCheck.passed,
+        message: subCheck.message,
+        deductionPct: subCheck.deductionPct ?? subCheck.deduction ?? 0,
+        optimizationHint: subCheck.optimizationHint || subCheck.suggestion || '',
+      })),
+    }));
+  }
+
   return (
     <section className="panel quality-panel">
       <div className="section-heading">
@@ -1462,10 +1488,10 @@ function QualityPage() {
                 </span>
                 <strong>{assetReport.assetName}</strong>
                 <span className="quality-asset-type">{assetTypeLabels[assetReport.assetType] || assetReport.assetType}</span>
-                <span className="quality-asset-type">{assetReport.qualityGrade}</span>
+                <span className="quality-asset-type">{assetReport.grade}</span>
               </div>
               <div className="quality-checks">
-                {assetReport.checks.map((check) => (
+                {normalizeDimensions(assetReport).map((check) => (
                   <div
                     className={`quality-check-row ${check.passed ? 'passed' : 'failed'}`}
                     key={check.name}
@@ -1479,29 +1505,33 @@ function QualityPage() {
                     </span>
                     <div className="quality-check-info">
                       <strong>
-                        {check.label} · {check.grade} · 权重 {check.weight}%
+                        {check.label} · {check.dimensionScore}/100 · 权重 {check.weightPct}%
                       </strong>
-                      <p>{check.message}</p>
-                      {check.suggestions?.length > 0 && (
-                        <p className="quality-check-tip">提示词优化：{check.suggestions.join('；')}</p>
-                      )}
-                      {check.criteria?.length > 0 && (
-                        <ul className="quality-criteria">
-                          {check.criteria.map((criterion) => (
-                            <li className={criterion.passed ? 'passed' : 'failed'} key={criterion.label}>
-                              <span>{criterion.passed ? '通过' : `扣 ${criterion.deduction}`}</span>
-                              {criterion.label}: {criterion.message}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      <p>加权得分：{check.weightedScore}，通过 {check.passedCount}/{check.totalCount} 个检查点</p>
+                      <ul className="quality-criteria">
+                        {check.subChecks.map((subCheck) => (
+                          <li className={subCheck.passed ? 'passed' : 'failed'} key={subCheck.name}>
+                            <span>{subCheck.passed ? '通过' : `扣 ${subCheck.deductionPct}%`}</span>
+                            <div>
+                              <strong>{subCheck.label}</strong>
+                              <p>{subCheck.message}</p>
+                              {!subCheck.passed && subCheck.optimizationHint && (
+                                <small>优化建议：{subCheck.optimizationHint}</small>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                     <span className="quality-check-deduction">
-                      {check.score}/100 · 加权得分 {check.weightedScore}
+                      {check.weightedScore}
                     </span>
                   </div>
                 ))}
               </div>
+              {assetReport.overallHint && (
+                <p className="quality-check-tip">{assetReport.overallHint}</p>
+              )}
               {assetReport.promptOptimizationTips?.length > 0 && (
                 <div className="quality-tips">
                   <strong>提示词优化建议</strong>
@@ -1521,64 +1551,59 @@ function QualityPage() {
 }
 
 function ExportPage() {
-  const [generations, setGenerations] = useState([]);
-  const [selectedGen, setSelectedGen] = useState('');
-  const [loadingGens, setLoadingGens] = useState(true);
-  const [exporting, setExporting] = useState(false);
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState(null);
-  const [genError, setGenError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState(null);
-  const [uploadError, setUploadError] = useState('');
 
-  async function loadGenerations() {
-    setLoadingGens(true);
-    setGenError('');
+  async function loadAssets() {
+    setLoading(true);
+    setError('');
     try {
-      const ids = await fetchExportableGenerations();
-      setGenerations(ids);
-      if (ids.length > 0 && !selectedGen) {
-        setSelectedGen(ids[0]);
-      }
+      const data = await fetchAssets();
+      setAssets(data);
     } catch (err) {
-      setGenError(err instanceof Error ? err.message : '加载失败');
+      setError(err instanceof Error ? err.message : '加载失败');
     } finally {
-      setLoadingGens(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadGenerations();
+    loadAssets();
   }, []);
 
+  function toggleAsset(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(assets.map((a) => a.id)));
+  }
+
+  function deselectAll() {
+    setSelectedIds(new Set());
+  }
+
   async function handleExport() {
-    if (!selectedGen) return;
+    if (selectedIds.size === 0) return;
     setExporting(true);
     setError('');
     setExportResult(null);
     try {
-      const result = await exportGeneration(selectedGen);
+      const result = await exportSelectedAssets([...selectedIds]);
       setExportResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : '导出失败');
     } finally {
       setExporting(false);
-    }
-  }
-
-  async function handleCloudUpload() {
-    if (!selectedGen) return;
-    setUploading(true);
-    setUploadError('');
-    setUploadResult(null);
-    try {
-      const assets = await uploadGenerationToCloud(selectedGen);
-      setUploadResult(assets);
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : '云端上传失败');
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -1588,109 +1613,119 @@ function ExportPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const assetsByType = {};
+  assets.forEach((a) => {
+    if (!assetsByType[a.assetType]) assetsByType[a.assetType] = [];
+    assetsByType[a.assetType].push(a);
+  });
+
   return (
     <section className="panel export-panel">
       <div className="section-heading">
         <h3>素材包导出</h3>
-        <span>{loadingGens ? 'LOADING' : `${generations.length} GENERATIONS`}</span>
+        <span>{loading ? 'LOADING' : `${assets.length} ASSETS / ${selectedIds.size} SELECTED`}</span>
       </div>
 
-      {loadingGens && (
+      {loading && (
         <div className="empty-state">
           <Loader2 size={28} />
-          正在从素材仓库读取 generation 列表...
+          正在从素材仓库读取素材列表...
         </div>
       )}
 
-      {genError && !loadingGens && (
+      {error && !loading && (
         <div className="empty-state">
-          <p className="error-line">{genError}</p>
-          <button className="secondary-button" type="button" onClick={loadGenerations}>
+          <p className="error-line">{error}</p>
+          <button className="secondary-button" type="button" onClick={loadAssets}>
             <RefreshCw size={14} />
             RETRY
           </button>
         </div>
       )}
 
-      {!loadingGens && !genError && generations.length === 0 && (
+      {!loading && !error && assets.length === 0 && (
         <div className="empty-state">
           <Package size={28} />
           暂无素材记录。请先在生成页创建素材，然后返回导出。
         </div>
       )}
 
-      {!loadingGens && !genError && generations.length > 0 && (
+      {!loading && !error && assets.length > 0 && (
         <>
-          <div className="export-form">
-            <label>
-              选择 Generation
-              <select
-                value={selectedGen}
-                onChange={(e) => {
-                  setSelectedGen(e.target.value);
-                  setExportResult(null);
-                  setError('');
-                }}
-              >
-                {generations.map((genId) => (
-                  <option key={genId} value={genId}>
-                    {genId}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="button-row">
-              <button
-                className="primary-button"
-                type="button"
-                onClick={handleExport}
-                disabled={exporting || !selectedGen}
-              >
-                {exporting ? (
-                  <>
-                    <Loader2 size={14} />
-                    EXPORTING
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} />
-                    EXPORT ZIP
-                  </>
-                )}
-              </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={loadGenerations}
-                disabled={loadingGens}
-              >
-                <RefreshCw size={14} />
-                REFRESH
-              </button>
-            </div>
+          <div className="button-row">
+            <button className="secondary-button" type="button" onClick={selectAll}>
+              全选
+            </button>
+            <button className="secondary-button" type="button" onClick={deselectAll}>
+              取消全选
+            </button>
+            <button className="secondary-button" type="button" onClick={loadAssets} disabled={loading}>
+              <RefreshCw size={14} />
+              刷新
+            </button>
           </div>
 
-          {error && <p className="error-line">{error}</p>}
+          <div className="export-asset-list">
+            {Object.keys(assetsByType).map((type) => (
+              <div key={type} className="export-type-group">
+                <h4 className="export-type-head">
+                  {assetTypeLabels[type] || type}
+                  <span>{assetsByType[type].length} 个</span>
+                </h4>
+                {assetsByType[type].map((asset) => (
+                  <label key={asset.id} className="export-asset-row">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(asset.id)}
+                      onChange={() => toggleAsset(asset.id)}
+                    />
+                    <div className="export-asset-thumb">
+                      {asset.localPath ? (
+                        <img src={buildAssetPreviewUrl(asset.localPath)} alt={asset.assetName} />
+                      ) : (
+                        <Image size={20} />
+                      )}
+                    </div>
+                    <span className="export-asset-name">{asset.assetName}</span>
+                    <small className="export-asset-gen">{asset.generationId}</small>
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <button
+            className="primary-button"
+            type="button"
+            onClick={handleExport}
+            disabled={exporting || selectedIds.size === 0}
+            style={{ marginTop: 16 }}
+          >
+            {exporting ? (
+              <>
+                <Loader2 size={14} />
+                EXPORTING
+              </>
+            ) : (
+              <>
+                <Download size={14} />
+                导出选中素材 ({selectedIds.size})
+              </>
+            )}
+          </button>
 
           {exportResult && (
-            <div className="export-result">
+            <div className="export-result" style={{ marginTop: 16 }}>
               <div className="export-result-icon">
                 <CheckCircle2 size={32} />
               </div>
               <div className="export-result-info">
                 <h4>导出成功</h4>
-                <p>
-                  <strong>{exportResult.zipFileName}</strong> 已下载
-                </p>
+                <p>已下载包含 {exportResult.assetCount} 个素材的 zip 包</p>
                 <div className="export-stats">
                   <span>
                     <FileJson size={12} />
                     {exportResult.assetCount} 个素材
-                  </span>
-                  <span>
-                    <FileJson size={12} />
-                    manifest {formatSize(exportResult.manifestSize)}
                   </span>
                   <span>
                     <Package size={12} />
@@ -1701,67 +1736,7 @@ function ExportPage() {
             </div>
           )}
 
-          {/* ── 云端上传 ── */}
-          <div className="export-divider" />
-
-          <div className="export-form">
-            <label>
-              <Cloud size={14} />
-              云端上传（模拟）
-            </label>
-            <p className="cloud-hint">
-              将当前 generation 的所有素材上传到云端。未配置真实云存储时使用 Mock 模式，
-              返回 <code>cloud://mock/...</code> 格式的模拟 URL。
-            </p>
-            <div className="button-row">
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleCloudUpload}
-                disabled={uploading || !selectedGen}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 size={14} />
-                    UPLOADING
-                  </>
-                ) : (
-                  <>
-                    <Upload size={14} />
-                    UPLOAD TO CLOUD
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {uploadError && <p className="error-line">{uploadError}</p>}
-
-          {uploadResult && (
-            <div className="export-result">
-              <div className="export-result-icon">
-                <Cloud size={32} />
-              </div>
-              <div className="export-result-info">
-                <h4>上传成功</h4>
-                <p>
-                  <strong>{uploadResult.length}</strong> 个素材已上传至云端
-                </p>
-                <div className="export-stats">
-                  {uploadResult.slice(0, 5).map((asset) => (
-                    <span key={asset.id} title={asset.cloudUrl}>
-                      {asset.assetName}: {asset.cloudUrl}
-                    </span>
-                  ))}
-                  {uploadResult.length > 5 && (
-                    <span>...另有 {uploadResult.length - 5} 个</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="export-hint">
+          <div className="export-hint" style={{ marginTop: 16 }}>
             <h4>导出内容说明</h4>
             <p>
               zip 包内含 <code>manifest.json</code> 元数据清单和按类型分目录的 PNG
@@ -1771,6 +1746,239 @@ function ExportPage() {
         </>
       )}
     </section>
+  );
+}
+
+function RegeneratePage() {
+  const [assets, setAssets] = useState([]);
+  const [loadingAssets, setLoadingAssets] = useState(true);
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [checkedActions, setCheckedActions] = useState({});
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [results, setResults] = useState([]);
+  const [lightbox, setLightbox] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await fetchAssets();
+        setAssets(data);
+        if (data.length > 0 && !selectedAssetId) {
+          setSelectedAssetId(data[0].id);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoadingAssets(false);
+      }
+    }
+    load();
+  }, []);
+
+  const selectedAsset = assets.find((a) => a.id === selectedAssetId);
+  const presets = selectedAsset ? getPresetsForType(selectedAsset.assetType) : [];
+
+  useEffect(() => {
+    const initial = {};
+    presets.forEach((p) => {
+      initial[p.action] = true;
+    });
+    setCheckedActions(initial);
+  }, [selectedAssetId]);
+
+  function toggleAction(action) {
+    setCheckedActions((prev) => ({ ...prev, [action]: !prev[action] }));
+  }
+
+  async function handleBatchGenerate() {
+    const actions = Object.entries(checkedActions)
+      .filter(([, checked]) => checked)
+      .map(([action]) => action);
+    if (actions.length === 0) {
+      setError('请至少选择一个动作。');
+      return;
+    }
+    setGenerating(true);
+    setError('');
+    setResults([]);
+    try {
+      const data = await regenerateBatch(selectedAssetId, actions, customPrompt || null);
+      setResults(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Batch regeneration failed');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div className="content-grid">
+      <section className="panel regenerate-page">
+        <div className="section-heading">
+          <h3>选择原型素材</h3>
+          <span>{loadingAssets ? 'LOADING' : `${assets.length} ASSETS`}</span>
+        </div>
+
+        {loadingAssets ? (
+          <div className="empty-state">
+            <Loader2 size={28} />
+            正在加载素材库...
+          </div>
+        ) : assets.length === 0 ? (
+          <div className="empty-state">
+            <ImageOff size={28} />
+            素材库为空，请先在生成页创建素材。
+          </div>
+        ) : (
+          <>
+            <label>
+              原型素材
+              <select
+                value={selectedAssetId}
+                onChange={(e) => {
+                  setSelectedAssetId(e.target.value);
+                  setResults([]);
+                  setError('');
+                }}
+              >
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    [{assetTypeLabels[asset.assetType] || asset.assetType}] {asset.assetName} — {asset.style}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedAsset && (
+              <div className="prototype-preview">
+                <div className="prototype-thumb">
+                  {selectedAsset.localPath ? (
+                    <img
+                      src={buildAssetPreviewUrl(selectedAsset.localPath)}
+                      alt={selectedAsset.assetName}
+                    />
+                  ) : (
+                    <Image size={40} />
+                  )}
+                </div>
+                <div className="prototype-info">
+                  <strong>{selectedAsset.assetName}</strong>
+                  <span>{assetTypeLabels[selectedAsset.assetType] || selectedAsset.assetType}</span>
+                  <span>{selectedAsset.style} / {selectedAsset.theme}</span>
+                  <small>{selectedAsset.provider}</small>
+                </div>
+              </div>
+            )}
+
+            <div className="section-heading compact-heading">
+              <h3>动作预设</h3>
+              <span>{presets.length} 个可选</span>
+            </div>
+
+            {presets.length === 0 ? (
+              <div className="empty-state">该素材类型暂不支持二次生成。</div>
+            ) : (
+              <div className="action-checkboxes">
+                {presets.map((p) => (
+                  <label key={p.action} className="action-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={checkedActions[p.action] || false}
+                      onChange={() => toggleAction(p.action)}
+                    />
+                    <span>
+                      <strong>{p.label}</strong>
+                      <small>{p.promptHint}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <label style={{ marginTop: 16 }}>
+              自定义提示词（可选，应用于所有选中动作）
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="输入额外的提示词要求..."
+                rows={3}
+              />
+            </label>
+
+            {error && <p className="error-line">{error}</p>}
+
+            <button
+              className="primary-button"
+              type="button"
+              onClick={handleBatchGenerate}
+              disabled={generating || presets.length === 0}
+              style={{ marginTop: 12 }}
+            >
+              {generating ? (
+                <>
+                  <Loader2 size={14} />
+                  GENERATING
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} />
+                  批量生成选中动作
+                </>
+              )}
+            </button>
+          </>
+        )}
+
+        {results.length > 0 && (
+          <>
+            <div className="section-heading compact-heading" style={{ marginTop: 24 }}>
+              <h3>生成结果</h3>
+              <span>{results.length} 个变体</span>
+            </div>
+            <div className="generated-grid">
+              {results.map((asset) => (
+                <article className="generated-card" key={asset.id}>
+                  <div
+                    className="generated-thumb"
+                    onClick={() => setLightbox({ url: buildAssetPreviewUrl(asset.localPath), name: asset.assetName, type: asset.assetType, provider: asset.provider })}
+                  >
+                    <img
+                      src={buildAssetPreviewUrl(asset.localPath)}
+                      alt={`${asset.assetName} preview`}
+                    />
+                  </div>
+                  <div className="generated-card-head">
+                    <CheckCircle2 size={16} />
+                    <strong>{asset.assetName}</strong>
+                    <span>{assetTypeLabels[asset.assetType] || asset.assetType}</span>
+                  </div>
+                  <p>{asset.localPath}</p>
+                  <small>
+                    {asset.provider} / {asset.providerMetadata.promptHash}
+                  </small>
+                  <pre>{asset.finalPrompt}</pre>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+      {lightbox && (
+        <div className="lightbox-backdrop" onClick={() => setLightbox(null)}>
+          <button className="lightbox-close" onClick={() => setLightbox(null)}>X</button>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.name} />
+            <div className="lightbox-info">
+              <strong>{lightbox.name}</strong>
+              <span>{lightbox.type}</span>
+              <span>{lightbox.provider}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
