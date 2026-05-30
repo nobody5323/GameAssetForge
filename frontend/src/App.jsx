@@ -332,7 +332,9 @@ function GeneratePage({
     try {
       const response = await generateAssets(requestPreview);
       setAssetGenerationState({ loading: false, error: '', response });
-      setSubmitState(`已生成 ${response.assets.length} 个素材：${response.generationId}`);
+      const errorCount = response.errors?.length || 0;
+      const errorSuffix = errorCount > 0 ? `，${errorCount} 个失败` : '';
+      setSubmitState(`已生成 ${response.assets.length} 个素材${errorSuffix}：${response.generationId}`);
     } catch (error) {
       setAssetGenerationState((current) => ({
         ...current,
@@ -574,6 +576,14 @@ function GeneratedAssetsPanel({ state }) {
               <pre>{asset.finalPrompt}</pre>
             </article>
           ))}
+          {state.response.errors?.length > 0 && (
+            <div className="empty-state" style={{ color: '#e06c75', gridColumn: '1 / -1', border: '1px solid #e06c7544', borderRadius: 6, padding: 12, marginTop: 8 }}>
+              <strong>生成失败的素材：</strong>
+              {state.response.errors.map((err, i) => (
+                <div key={i} style={{ marginTop: 4 }}>{err}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {lightbox && (

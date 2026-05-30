@@ -55,7 +55,9 @@ export function summarizeGeneratedAssets(response) {
   if (!response) {
     return '等待生成';
   }
-  return `${response.generationId} / ${response.assets.length} 个素材 / ${response.provider}`;
+  const errorCount = response.errors?.length || 0;
+  const errorSuffix = errorCount > 0 ? ` (${errorCount} 失败)` : '';
+  return `${response.generationId} / ${response.assets.length} 个素材${errorSuffix} / ${response.provider}`;
 }
 
 export async function fetchExportableGenerations() {

@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import re
+import time
 from pathlib import Path
 
 import httpx
@@ -14,7 +15,12 @@ GENERATED_ASSET_DIR = BACKEND_ROOT / "runtime" / "storage" / "generated-assets"
 
 
 class GptImageProvider(ImageProvider):
-    """Generates images via OpenAI Images API (DALL-E) or Chat Completions API (gpt-image-2)."""
+    """Generates images via OpenAI APIs.
+
+    Dispatches to the correct endpoint based on model name:
+    - dall-e-2 / dall-e-3: /v1/images/generations
+    - gpt-image-2: /v1/chat/completions
+    """
 
     provider_name = "gpt_image"
 
@@ -31,12 +37,12 @@ class GptImageProvider(ImageProvider):
         model = image_runtime_config.image_model
         if model.startswith("dall-e"):
             base64_image, revised_prompt = self._call_dalle_api(request.finalPrompt)
-            image_bytes = base64.b64decode(base64_image)
         elif model.startswith("gpt-image"):
-            image_bytes, revised_prompt = self._call_chat_api(request.finalPrompt)
+            base64_image, revised_prompt = self._call_chat_api(request.finalPrompt)
         else:
             raise RuntimeError(f"Unsupported image model: {model}")
 
+        image_bytes = base64.b64decode(base64_image)
         destination_path = self._destination_path(request)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
         destination_path.write_bytes(image_bytes)
@@ -58,8 +64,6 @@ class GptImageProvider(ImageProvider):
             },
         )
 
-    # ── DALL-E API (legacy) ──
-
     def _call_dalle_api(self, prompt: str) -> tuple[str, str | None]:
         api_key = image_runtime_config.api_key
         _require_ascii(api_key, "OpenAI API Key")
@@ -75,140 +79,112 @@ class GptImageProvider(ImageProvider):
         if model.startswith("dall-e"):
             payload["quality"] = image_runtime_config.image_quality
 
-        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
-            response = client.post(
-                f"{image_runtime_config.base_url}/images/generations",
-                headers={
-                    "Authorization": f"Bearer {image_runtime_config.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-            )
-            response.raise_for_status()
-
-        data = response.json()
+        data = self._httpx_post(
+            f"{image_runtime_config.base_url}/images/generations",
+            payload,
+            "Images",
+        )
         image_data = data["data"][0]
-        revised_prompt = image_data.get("revised_prompt")
-        return image_data["b64_json"], revised_prompt
+        return image_data["b64_json"], image_data.get("revised_prompt")
 
-    # ── Chat Completions API (gpt-image-2) ──
-
-    def _call_chat_api(self, prompt: str) -> tuple[bytes, str | None]:
-        max_attempts = 2
-        last_error: Exception | None = None
-
-        for attempt in range(max_attempts):
-            try:
-                response = self._httpx_post(prompt)
-                _raise_on_api_error(response, "Chat Completions")
-                data = response.json()
-                return self._parse_chat_response(data, prompt)
-            except httpx.RequestError as exc:
-                last_error = RuntimeError(
-                    f"Image API (Chat Completions) network error — 服务器连接断开: {exc}"
-                )
-                if attempt < max_attempts - 1:
-                    import time
-                    time.sleep(5)
-                    continue
-                raise last_error
-            except RuntimeError:
-                raise
-            except Exception as exc:
-                last_error = exc
-                if attempt < max_attempts - 1:
-                    import time
-                    time.sleep(5)
-                    continue
-
-        raise last_error  # type: ignore[misc]
-
-    def _httpx_post(self, prompt: str) -> httpx.Response:
+    def _call_chat_api(self, prompt: str) -> tuple[str, str | None]:
         api_key = image_runtime_config.api_key
         _require_ascii(api_key, "OpenAI API Key")
 
         payload = {
             "model": image_runtime_config.image_model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
+            "messages": [{"role": "user", "content": prompt}],
+            "n": 1,
+            "size": image_runtime_config.image_size,
         }
+        data = self._httpx_post(
+            f"{image_runtime_config.base_url}/chat/completions",
+            payload,
+            "Chat Completions",
+        )
+        return self._parse_chat_response(data, prompt)
 
-        kwargs = image_runtime_config.get_client_kwargs()
-        kwargs.setdefault("timeout", 300)
-        headers = kwargs.pop("headers", {})
-        headers.update({
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Connection": "close",
-        })
+    def _httpx_post(self, url: str, payload: dict, api_label: str) -> dict:
+        api_key = image_runtime_config.api_key
+        last_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+                    response = client.post(
+                        url,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "Connection": "close",
+                        },
+                        json=payload,
+                    )
+                    _raise_on_api_error(response, api_label)
+                return response.json()
+            except RuntimeError:
+                raise
+            except httpx.RequestError as exc:
+                last_error = exc
+                if attempt == 0:
+                    time.sleep(5)
+                    continue
+        raise RuntimeError(
+            f"Image API ({api_label}) network error — "
+            f"服务器连接断开（已重试 1 次）: {last_error}"
+        ) from last_error
 
-        with httpx.Client(**kwargs) as client:
-            return client.post(
-                f"{image_runtime_config.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
+    def _parse_chat_response(self, data: dict, prompt: str) -> tuple[str, str | None]:
+        # Some providers return image entries in top-level data.
+        for item in data.get("data", []) or []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "image" and isinstance(item.get("image"), dict):
+                image = item["image"]
+                if image.get("b64_json"):
+                    return image["b64_json"], prompt
+                if image.get("url"):
+                    return _to_base64(self._download_image(image["url"])), prompt
 
-    def _parse_chat_response(self, data: dict, prompt: str) -> tuple[bytes, str | None]:
-        # Path 1: OpenAI native annotations format
-        annotations = data.get("data", [])
-        if annotations and isinstance(annotations, list):
-            for item in annotations:
-                if isinstance(item, dict) and item.get("type") == "image" and item.get("image"):
-                    b64 = item["image"].get("b64_json")
-                    if b64:
-                        return base64.b64decode(b64), prompt
-                    url = item["image"].get("url")
-                    if url:
-                        return self._download_image(url), prompt
-
-        # Path 2: Standard OpenAI message.annotations
-        choices = data.get("choices", [])
+        choices = data.get("choices", []) or []
         if choices:
-            choice = choices[0]
-            message = choice.get("message", {})
-            annotations_list = message.get("annotations", [])
-            for ann in annotations_list:
-                if isinstance(ann, dict) and ann.get("type") == "image" and ann.get("image"):
-                    b64 = ann["image"].get("b64_json")
-                    if b64:
-                        return base64.b64decode(b64), prompt
-                    url = ann["image"].get("url")
-                    if url:
-                        return self._download_image(url), prompt
+            message = choices[0].get("message", {})
+            for ann in message.get("annotations", []) or []:
+                if not isinstance(ann, dict):
+                    continue
+                image = ann.get("image", {})
+                if ann.get("type") == "image" and isinstance(image, dict):
+                    if image.get("b64_json"):
+                        return image["b64_json"], prompt
+                    if image.get("url"):
+                        return _to_base64(self._download_image(image["url"])), prompt
 
-        # Path 3: micuapi.ai proxy — markdown URL in message.content
-        content = ""
-        if choices:
-            msg = choices[0].get("message", {})
-            content = msg.get("content", "")
+            content = message.get("content", "")
             if isinstance(content, list):
                 content = " ".join(
                     part.get("text", "") if isinstance(part, dict) else str(part)
                     for part in content
                 )
-        img_url = _extract_image_url(str(content))
-        if img_url:
-            return self._download_image(img_url), prompt
+            image_url = _extract_image_url(str(content))
+            if image_url:
+                return _to_base64(self._download_image(image_url)), prompt
 
         raise RuntimeError(
             f"Chat Completions API returned unexpected format for model "
             f"{image_runtime_config.image_model}. "
-            f"Expected image in message.annotations or message.content. "
+            f"Expected image in data, message.annotations, or message.content. "
             f"Response keys: {list(data.keys())}, choices: {len(choices)}"
         )
 
     def _download_image(self, url: str) -> bytes:
-        with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
-            resp = client.get(url)
-            resp.raise_for_status()
-            return resp.content
-
-    # ── Helpers ──
+        try:
+            with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                return response.content
+        except RuntimeError:
+            raise
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"Failed to download image from {url}: {exc}") from exc
 
     def _destination_path(self, request: ImageGenerationRequest) -> Path:
         generation_id = _safe_slug(request.generationId)
@@ -217,7 +193,39 @@ class GptImageProvider(ImageProvider):
         return GENERATED_ASSET_DIR / generation_id / asset_type / f"{asset_name}.png"
 
 
-# ── Module-level helpers ──
+def _raise_on_api_error(response: httpx.Response, api_label: str) -> None:
+    if response.is_success:
+        return
+    try:
+        body = response.text
+    except Exception:
+        body = "(unable to read response body)"
+    raise RuntimeError(
+        f"Image API ({api_label}) returned HTTP {response.status_code}: {body}"
+    )
+
+
+_MD_IMAGE_RE = re.compile(r"!\[.*?\]\((\S+?)\)")
+_BARE_URL_RE = re.compile(
+    r"(https?://\S+\.(?:png|jpg|jpeg|webp)(?:\?\S*)?)", re.IGNORECASE
+)
+
+
+def _extract_image_url(content: str) -> str | None:
+    if not content:
+        return None
+    match = _MD_IMAGE_RE.search(content)
+    if match:
+        return match.group(1)
+    match = _BARE_URL_RE.search(content)
+    if match:
+        return match.group(1)
+    return None
+
+
+def _to_base64(image_bytes: bytes) -> str:
+    return base64.b64encode(image_bytes).decode("ascii")
+
 
 def _safe_slug(value: str) -> str:
     slug = "".join(c if c.isalnum() else "_" for c in value.lower())
@@ -242,28 +250,3 @@ def _require_ascii(value: str, label: str) -> None:
             f"{label} 包含非 ASCII 字符（{exc.start}-{exc.end}），"
             f"HTTP 认证头只支持英文和数字。请检查 Image API 配置页面中的 Key/Token 是否正确。"
         ) from None
-
-
-def _extract_image_url(text: str) -> str | None:
-    """Extract image URL from markdown or plain URL in text content."""
-    md_match = re.search(r"!\[.*?\]\(([^)]+)\)", text)
-    if md_match:
-        url = md_match.group(1)
-        if url.endswith((".png", ".jpg", ".jpeg", ".webp")):
-            return url
-    url_match = re.search(r"https?://\S+\.(?:png|jpg|jpeg|webp)", text)
-    if url_match:
-        return url_match.group(0)
-    return None
-
-
-def _raise_on_api_error(response: httpx.Response, label: str) -> None:
-    if not response.is_success:
-        body = ""
-        try:
-            body = response.text
-        except Exception:
-            pass
-        raise RuntimeError(
-            f"{label} API returned {response.status_code}: {body[:500]}"
-        )
