@@ -147,8 +147,6 @@ IMAGE_GEN_SIZE=1024x1024
 
 ### 3. Asset Quality Inspector（加权评分制）
 
-### 3. Asset Quality Inspector（加权评分制）
-
 6 维度加权评分，每维度含子检查点，百分比权重：
 1. 技术合规 — PNG 格式 / 尺寸 / 位深度（25%）
 2. 内容完整性 — 非纯色 / 非空白 / 有效像素（20%）
