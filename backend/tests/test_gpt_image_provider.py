@@ -1,13 +1,12 @@
 import base64
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import httpx
 import pytest
 
 from app.models.asset_models import ImageGenerationRequest
-from app.providers.gpt_image_provider import GptImageProvider
+from app.providers.gpt_image_provider import BACKEND_ROOT, GptImageProvider
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -25,18 +24,6 @@ DUMMY_API_RESPONSE = {
         }
     ]
 }
-
-DUMMY_CHAT_RESPONSE = {
-    "choices": [
-        {
-            "message": {
-                "role": "assistant",
-                "content": "![image](https://oss.filenest.top/uploads/dummy-test-image.png)\n\n",
-            }
-        }
-    ]
-}
-
 
 def _mock_dalle_post(*args, **kwargs):
     """Return a mocked httpx.Response for DALL-E Images API."""
@@ -61,27 +48,33 @@ def _mock_dalle_post(*args, **kwargs):
     return MockResponse()
 
 
-def _mock_chat_post(*args, **kwargs):
-    """Return a mocked httpx.Response for gpt-image-2 Chat Completions API."""
+def _mock_gpt_image_post(captured):
+    """Return a mocked httpx.Response for GPT Image Images API."""
 
-    class MockResponse:
-        status_code = 200
+    def _post(url, *args, **kwargs):
+        captured["url"] = url
+        captured["json"] = kwargs.get("json", {})
 
-        def raise_for_status(self):
-            pass
+        class MockResponse:
+            status_code = 200
 
-        @property
-        def is_success(self):
-            return True
+            def raise_for_status(self):
+                pass
 
-        def json(self):
-            return DUMMY_CHAT_RESPONSE
+            @property
+            def is_success(self):
+                return True
 
-        @property
-        def text(self):
-            return json.dumps(DUMMY_CHAT_RESPONSE)
+            def json(self):
+                return DUMMY_API_RESPONSE
 
-    return MockResponse()
+            @property
+            def text(self):
+                return json.dumps(DUMMY_API_RESPONSE)
+
+        return MockResponse()
+
+    return _post
 
 
 def _mock_error_post(*args, **kwargs):
@@ -182,7 +175,7 @@ def test_dalle_generates_image():
     assert result.metadata["promptHash"]
 
     # Verify the image file was saved
-    generated_path = Path(result.localPath)
+    generated_path = BACKEND_ROOT / result.localPath
     assert generated_path.exists()
     png_bytes = generated_path.read_bytes()
     assert png_bytes.startswith(PNG_SIGNATURE)
@@ -229,32 +222,32 @@ def test_dalle_path_sanitized():
     assert result.localPath == (
         "runtime/storage/generated-assets/gen_path_test/dark_boss/boss_portal_2.png"
     )
-    assert Path(result.localPath).exists()
+    assert (BACKEND_ROOT / result.localPath).exists()
 
 
-# ── gpt-image-2 (Chat Completions API) ──
+# ── gpt-image-2 (Images API) ──
 
 
 def test_gpt_image2_generates_image(monkeypatch):
-    """gpt-image-2 model should use chat completions endpoint and return image."""
+    """gpt-image-2 model should use the Images API, not Chat Completions."""
     monkeypatch.setattr(
         "app.providers.gpt_image_provider.image_runtime_config.image_model",
         "gpt-image-2",
     )
     provider = GptImageProvider()
+    captured = {}
 
-    with patch.object(httpx.Client, "post", side_effect=_mock_chat_post):
-        with patch.object(provider, "_download_image", return_value=base64.b64decode(DUMMY_PNG_BASE64)):
-            result = provider.generate(
-                ImageGenerationRequest(
-                    generationId="gen-gpt2-001",
-                    assetName="knight",
-                    assetType="character",
-                    style="fantasy",
-                    theme="medieval",
-                    finalPrompt="A brave knight in shining armor.",
-                )
+    with patch.object(httpx.Client, "post", side_effect=_mock_gpt_image_post(captured)):
+        result = provider.generate(
+            ImageGenerationRequest(
+                generationId="gen-gpt2-001",
+                assetName="knight",
+                assetType="character",
+                style="fantasy",
+                theme="medieval",
+                finalPrompt="A brave knight in shining armor.",
             )
+        )
 
     assert result.provider == "gpt_image"
     assert result.assetName == "knight"
@@ -262,9 +255,15 @@ def test_gpt_image2_generates_image(monkeypatch):
     assert result.metadata["model"] == "gpt-image-2"
     assert result.metadata["mock"] is False
     assert result.metadata["promptHash"]
+    assert captured["url"] == "https://api.openai.com/v1/images/generations"
+    assert captured["json"]["model"] == "gpt-image-2"
+    assert captured["json"]["prompt"] == "A brave knight in shining armor."
+    assert captured["json"]["quality"] == "medium"
+    assert "messages" not in captured["json"]
+    assert "response_format" not in captured["json"]
 
     # Verify the image file was saved
-    generated_path = Path(result.localPath)
+    generated_path = BACKEND_ROOT / result.localPath
     assert generated_path.exists()
     png_bytes = generated_path.read_bytes()
     assert png_bytes.startswith(PNG_SIGNATURE)

@@ -125,11 +125,13 @@ class AssetGenerationService:
         if not action_prompt:
             raise ValueError(f"Unknown action '{action}' for asset type '{original_asset.assetType}'")
 
+        # 用原图的 finalPrompt 精确复现角色，不依赖参考图（micuapi.ai 不支持图片输入）
         prompt_parts = [
-            "Create a 2D game asset variation.",
-            f"Original asset: {original_asset.assetName} ({original_asset.assetType}).",
-            f"Style: {original_asset.style}. Theme: {original_asset.theme}.",
-            f"Variation: {action_prompt}",
+            f"Generate EXACTLY this character: {original_asset.finalPrompt}",
+            f"Now show this SAME character in a new pose: {action_prompt}.",
+            f"CRITICAL: This must be the IDENTICAL character from the description above. "
+            "Same appearance, same hair, same eyes, same outfit, same art style, same color scheme. "
+            "ONLY the pose/action changes.",
         ]
         if custom_prompt:
             prompt_parts.append(f"Additional requirements: {custom_prompt}")
@@ -140,20 +142,31 @@ class AssetGenerationService:
         final_prompt = " ".join(prompt_parts)
 
         regen_id = f"regen_{uuid4().hex[:12]}"
-        image_provider = self._select_provider("gpt_image")
-
-        generated = image_provider.generate(
-            ImageGenerationRequest(
-                generationId=regen_id,
-                assetName=f"{original_asset.assetName}_{action}",
-                assetType=original_asset.assetType,
-                style=original_asset.style,
-                theme=original_asset.theme,
-                finalPrompt=final_prompt,
-                negativePrompt=None,
-                promptVersion=PROMPT_VERSION,
-            )
+        image_request = ImageGenerationRequest(
+            generationId=regen_id,
+            assetName=f"{original_asset.assetName}_{action}",
+            assetType=original_asset.assetType,
+            style=original_asset.style,
+            theme=original_asset.theme,
+            finalPrompt=final_prompt,
+            negativePrompt=None,
+            promptVersion=PROMPT_VERSION,
+            # micuapi.ai 不支持 image_url，不传参考图，靠原 finalPrompt 文本复现
         )
+        image_provider = self._select_provider("gpt_image")
+        fallback_reason = ""
+
+        try:
+            generated = image_provider.generate(image_request)
+        except Exception as exc:
+            if image_provider is self.mock_provider:
+                raise
+            fallback_reason = str(exc)
+            generated = self.mock_provider.generate(image_request)
+            generated.metadata.update({
+                "fallbackFrom": image_provider.provider_name,
+                "fallbackReason": fallback_reason[:500],
+            })
 
         new_asset = AssetRecord(
             id=f"asset_{uuid4().hex[:12]}",
