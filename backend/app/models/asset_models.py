@@ -12,6 +12,11 @@ class ImageGenerationRequest(BaseModel):
     finalPrompt: str
     negativePrompt: str | None = None
     promptVersion: str = "prompt-v1"
+    referenceImagePath: str | None = Field(
+        default=None,
+        examples=["runtime/storage/generated-assets/gen_xxx/character/slime.png"],
+        description="参考图片本地路径，用于以图生图（image-to-image）",
+    )
 
 
 class GeneratedImage(BaseModel):
