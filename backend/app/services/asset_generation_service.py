@@ -140,20 +140,30 @@ class AssetGenerationService:
         final_prompt = " ".join(prompt_parts)
 
         regen_id = f"regen_{uuid4().hex[:12]}"
-        image_provider = self._select_provider("gpt_image")
-
-        generated = image_provider.generate(
-            ImageGenerationRequest(
-                generationId=regen_id,
-                assetName=f"{original_asset.assetName}_{action}",
-                assetType=original_asset.assetType,
-                style=original_asset.style,
-                theme=original_asset.theme,
-                finalPrompt=final_prompt,
-                negativePrompt=None,
-                promptVersion=PROMPT_VERSION,
-            )
+        image_request = ImageGenerationRequest(
+            generationId=regen_id,
+            assetName=f"{original_asset.assetName}_{action}",
+            assetType=original_asset.assetType,
+            style=original_asset.style,
+            theme=original_asset.theme,
+            finalPrompt=final_prompt,
+            negativePrompt=None,
+            promptVersion=PROMPT_VERSION,
         )
+        image_provider = self._select_provider("gpt_image")
+        fallback_reason = ""
+
+        try:
+            generated = image_provider.generate(image_request)
+        except Exception as exc:
+            if image_provider is self.mock_provider:
+                raise
+            fallback_reason = str(exc)
+            generated = self.mock_provider.generate(image_request)
+            generated.metadata.update({
+                "fallbackFrom": image_provider.provider_name,
+                "fallbackReason": fallback_reason[:500],
+            })
 
         new_asset = AssetRecord(
             id=f"asset_{uuid4().hex[:12]}",

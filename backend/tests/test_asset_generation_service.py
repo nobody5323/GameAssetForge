@@ -204,3 +204,42 @@ def test_list_assets_includes_all_fields(monkeypatch):
     assert "localPath" in asset
     assert "provider" in asset
     assert "providerMetadata" in asset
+
+
+def test_regenerate_falls_back_to_mock_when_gpt_image_disconnects(monkeypatch):
+    from app.models.asset_models import AssetRecord
+    from app.services.asset_generation_service import AssetGenerationService
+
+    _clean_runtime_records()
+    service = AssetGenerationService()
+    monkeypatch.setattr(service.gpt_provider, "is_available", lambda: True)
+
+    def _disconnect(_request):
+        raise RuntimeError(
+            "Image API (Chat Completions) network error — 服务器连接断开（已重试 1 次）"
+        )
+
+    monkeypatch.setattr(service.gpt_provider, "generate", _disconnect)
+    original = AssetRecord(
+        id="asset_original_asuna",
+        generationId="gen_original",
+        projectName="Test Game",
+        assetName="asuna",
+        assetType="character",
+        style="pixel_art",
+        theme="fantasy",
+        finalPrompt="asuna character sprite",
+        promptVersion="prompt-v1",
+        localPath="runtime/storage/generated-assets/gen_original/character/asuna.png",
+        provider="gpt_image",
+        providerMetadata={"model": "gpt-image-2", "mock": False},
+    )
+
+    result = service.regenerate_asset(original, "skill_release")
+
+    assert result.assetName == "asuna_skill_release"
+    assert result.provider == "mock"
+    assert result.parentAssetId == original.id
+    assert result.providerMetadata["fallbackFrom"] == "gpt_image"
+    assert "服务器连接断开" in result.providerMetadata["fallbackReason"]
+    assert (BACKEND_ROOT / result.localPath).exists()
