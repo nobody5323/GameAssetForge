@@ -2,6 +2,8 @@
 
 GameAsset Forge 是一个面向独立游戏开发者的 AI 2D 游戏素材生产与交付平台。系统将自然语言需求转换为结构化生图提示词，通过 Provider 层生成素材，再进行质量检查、素材库管理、云端上传，最后导出 `manifest.json` + zip 素材包。
 
+DEMO链接：https://www.bilibili.com/video/BV1nQGH6cEXm/?vd_source=e7d0bb56ba2148fba546b8f9f68aeb5f
+
 ## 技术栈
 
 - **前端**：React 19 + Vite 6
