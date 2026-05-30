@@ -43,12 +43,15 @@ class GptImageProvider(ImageProvider):
                     "Use gpt-image-2 instead."
                 )
             base64_image, revised_prompt = self._call_dalle_api(request.finalPrompt)
-        else:
-            # gpt-image-2 (and future non-DALL-E models) use chat completions
-            base64_image, revised_prompt = self._call_chat_api(
+        elif request.referenceImagePath:
+            # gpt-image-2 image-to-image via micuapi.ai reference_image param
+            base64_image, revised_prompt = self._call_reference_api(
                 request.finalPrompt,
                 request.referenceImagePath,
             )
+        else:
+            # gpt-image-2 text-to-image via Chat Completions
+            base64_image, revised_prompt = self._call_chat_api(request.finalPrompt)
 
         image_bytes = base64.b64decode(base64_image)
 
@@ -73,17 +76,85 @@ class GptImageProvider(ImageProvider):
             },
         )
 
-    # ── Chat Completions API (gpt-image-2) ─────────────────────────
+    # ── Images Edits API (image-to-image via micuapi.ai, multipart) ──
+
+    def _call_reference_api(
+        self,
+        prompt: str,
+        reference_image_path: str,
+    ) -> tuple[str, str | None]:
+        """Call /v1/images/edits with multipart form data for image-to-image.
+
+        micuapi.ai supports the OpenAI Images Edits endpoint.  The reference
+        image is sent as a multipart file part (not a data URL), which is the
+        correct format for 1K (1024x1024) image-to-image requests.
+        """
+        api_key = image_runtime_config.api_key
+        _require_ascii(api_key, "OpenAI API Key")
+
+        ref_path = BACKEND_ROOT / reference_image_path
+        if not ref_path.exists():
+            raise RuntimeError(f"Reference image not found: {reference_image_path}")
+
+        ref_bytes = ref_path.read_bytes()
+        ext = ref_path.suffix.lower()
+        mime = "image/png" if ext == ".png" else "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+
+        model = image_runtime_config.image_model
+
+        # Multipart form data — the "image" field is a file tuple (filename, bytes, mime)
+        files = {
+            "image": (ref_path.name, ref_bytes, mime),
+        }
+        data_fields = {
+            "model": model,
+            "prompt": prompt,
+            "n": "1",
+            "size": image_runtime_config.image_size,
+            "response_format": "b64_json",
+        }
+
+        url = f"{image_runtime_config.base_url}/images/edits"
+        last_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                with httpx.Client(**image_runtime_config.get_client_kwargs()) as client:
+                    response = client.post(
+                        url,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Connection": "close",
+                        },
+                        data=data_fields,
+                        files=files,
+                    )
+                    _raise_on_api_error(response, "Images Edits")
+                return self._parse_image_response(response.json())
+            except RuntimeError:
+                raise
+            except httpx.RequestError as exc:
+                last_error = exc
+                if attempt == 0:
+                    time.sleep(5)
+                    continue
+        raise RuntimeError(
+            f"Image API (Images Edits) network error — "
+            f"服务器连接断开（已重试 1 次）: {last_error}"
+        ) from last_error
+
+    def _parse_image_response(self, data: dict) -> tuple[str, str | None]:
+        """Extract (b64_json, revised_prompt) from an images API response."""
+        image_data = data["data"][0]
+        return image_data["b64_json"], image_data.get("revised_prompt")
+
+    # ── Chat Completions API (gpt-image-2 text-to-image) ─────────────
 
     def _call_chat_api(
         self,
         prompt: str,
-        reference_image_path: str | None = None,
+        reference_image_path: str | None = None,  # kept for backward compat, ignored
     ) -> tuple[str, str | None]:
-        """Call Chat Completions API for gpt-image-2 and return (base64, revised_prompt).
-
-        When reference_image_path is provided, the request becomes image-to-image:
-        the reference image is sent as a base64 data URL alongside the text prompt.
+        """Call Chat Completions API for gpt-image-2 text-to-image.
 
         Handles multiple response formats from different providers:
         - OpenAI official: message.annotations[].image.b64_json
@@ -93,36 +164,12 @@ class GptImageProvider(ImageProvider):
         _require_ascii(api_key, "OpenAI API Key")
 
         model = image_runtime_config.image_model
-
-        # Build message content — text-only or multimodal (image + text)
-        if reference_image_path:
-            ref_path = BACKEND_ROOT / reference_image_path
-            if not ref_path.exists():
-                raise RuntimeError(
-                    f"Reference image not found: {reference_image_path}"
-                )
-            ref_bytes = ref_path.read_bytes()
-            ref_b64 = base64.b64encode(ref_bytes).decode("ascii")
-            # Infer MIME type from extension
-            ext = ref_path.suffix.lower()
-            mime = "image/png" if ext == ".png" else "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
-            # Image FIRST so the model anchors on the visual input
-            message_content = [
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime};base64,{ref_b64}", "detail": "high"},
-                },
-                {"type": "text", "text": prompt},
-            ]
-        else:
-            message_content = prompt
-
         payload = {
             "model": model,
             "messages": [
                 {
                     "role": "user",
-                    "content": message_content,
+                    "content": prompt,
                 }
             ],
             "n": 1,

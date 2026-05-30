@@ -7,7 +7,7 @@ from app.models.asset_models import (
     ImageGenerationRequest,
 )
 from app.models.prompt_models import PromptCompileRequest
-from app.presets.secondary_presets import build_action_prompt, get_presets_for_type
+from app.presets.secondary_presets import build_action_prompt, get_action_label, get_presets_for_type
 from app.prompt.prompt_compiler import PromptCompiler
 from app.providers.gpt_image_provider import GptImageProvider
 from app.providers.image_provider import ImageProvider
@@ -121,17 +121,11 @@ class AssetGenerationService:
         if not presets:
             raise ValueError(f"Asset type '{original_asset.assetType}' does not support secondary generation")
 
-        action_prompt = build_action_prompt(original_asset.assetType, action)
-        if not action_prompt:
-            raise ValueError(f"Unknown action '{action}' for asset type '{original_asset.assetType}'")
-
-        # 用原图的 finalPrompt 精确复现角色，不依赖参考图（micuapi.ai 不支持图片输入）
+        action_label = get_action_label(original_asset.assetType, action) or action
         prompt_parts = [
-            f"Generate EXACTLY this character: {original_asset.finalPrompt}",
-            f"Now show this SAME character in a new pose: {action_prompt}.",
-            f"CRITICAL: This must be the IDENTICAL character from the description above. "
-            "Same appearance, same hair, same eyes, same outfit, same art style, same color scheme. "
-            "ONLY the pose/action changes.",
+            f"{action_label}.",
+            "Keep everything else IDENTICAL to the reference image — same character, same colors, same style.",
+            f"Character description (from original): {original_asset.finalPrompt}",
         ]
         if custom_prompt:
             prompt_parts.append(f"Additional requirements: {custom_prompt}")
@@ -151,7 +145,7 @@ class AssetGenerationService:
             finalPrompt=final_prompt,
             negativePrompt=None,
             promptVersion=PROMPT_VERSION,
-            # micuapi.ai 不支持 image_url，不传参考图，靠原 finalPrompt 文本复现
+            referenceImagePath=original_asset.localPath,
         )
         image_provider = self._select_provider("gpt_image")
         fallback_reason = ""
